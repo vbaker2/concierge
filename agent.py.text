@@ -1,0 +1,81 @@
+import ollama
+import json
+
+async def get_ai_response(query: str, context_data: dict) -> str:
+    """
+    Calls the Ollama model with a specific system prompt and user query, including a few-shot example.
+    """
+    # Convert the context data dictionary to a JSON string
+    context_str = json.dumps(context_data, indent=2)
+
+    # A lean system prompt focusing on the persona and formatting.
+    system_prompt = """You are "CityScape," a friendly and helpful AI concierge for hotel guests in Tallinn. Your tone must be warm and helpful. You MUST follow the structure and Markdown formatting (bolding with **, bullet points with -) shown in the user's example EXACTLY to make your answers clear and easy to read."""
+
+    # A more detailed few-shot example to guide the model's behavior with better formatting.
+    few_shot_example = """
+    HERE IS AN EXAMPLE OF HOW TO ANSWER. FOLLOW THIS STRUCTURE AND FORMATTING EXACTLY:
+
+    ---
+    EXAMPLE DATA:
+    {
+      "partner_experiences": [
+        {
+          "company": "Example Tour Co.",
+          "experience_name": "Old Town Ghost Tour",
+          "price_eur": 30,
+          "tour_times": ["19:00", "21:00"],
+          "meeting_point": "By the main church.",
+          "contact": { "phone": "+372 555 98765", "website": "https://exampleghosts.ee" }
+        }
+      ]
+    }
+    ---
+    EXAMPLE USER'S QUESTION:
+    Tell me about a ghost tour.
+    ---
+    EXAMPLE CORRECT RESPONSE:
+    Of course! I'd recommend the **Old Town Ghost Tour** by **Example Tour Co.** for a spooky evening.
+
+    Here are the details:
+    - **Price:** €30 per person
+    - **Tour Times:** 19:00 and 21:00
+    - **Meeting Point:** By the main church.
+
+    **How to book:**
+    You can contact them directly to make a reservation:
+    - **Phone:** +372 555 98765
+    - **Website:** https://exampleghosts.ee
+    """
+
+    # Construct a new user message that includes the example, the context data, and the original query.
+    user_message_with_context = f"""
+    {few_shot_example}
+
+    NOW, FOLLOW THE EXAMPLE ABOVE TO ANSWER THE REAL QUESTION.
+
+    **CRITICAL INSTRUCTION: Use ONLY the following real data. Do not use any other information.**
+
+    ---
+    REAL AVAILABLE DATA:
+    {context_str}
+    ---
+
+    REAL USER'S QUESTION:
+    {query}
+    """
+
+    try:
+        response = await ollama.AsyncClient().chat(
+            model='gpt-oss:120b-cloud',
+            messages=[
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_message_with_context},
+            ],
+        )
+        # The frontend will handle converting markdown newline to <br>
+        return response['message']['content']
+    except Exception as e:
+        print(f"Error connecting to Ollama: {e}")
+        return "I'm sorry, I'm having trouble connecting to my knowledge base at the moment. Please ensure the Ollama service is running."
+
+

@@ -1,0 +1,28 @@
+{
+  "partner_experiences": [
+    {
+      "company": "120 Degrees",
+      "experience_name": "Daily Walking Tour of Old Tallinn",
+      "description": "A daily city walking tour of Old Tallinn, available every day no matter the season or weather. The guide will be waiting with a bright yellow sign.",
+      "tour_times": [
+        "10:00",
+        "13:00",
+        "15:30"
+      ],
+      "price_eur": 25,
+      "meeting_point": "Town Hall Square, under the Town Hall clock.",
+      "booking_notes": "Minimum booking is 3 hours prior to the start. For the 15:30 tour, please use GetYourGuide or Viator. For last-minute bookings, please use the contact number.",
+      "contact": {
+        "phone": "+37257131572",
+        "whatsapp": "+37257131572",
+        "facebook": "https://www.facebook.com/profile.php?id=61553094789432",
+        "booking_link": "https://www.viator.com/tours/Tallinn/120-Degrees-Tallinn-Group-daily-walking-tour-of-the-Old-Town/d4147-440255P1"
+      }
+    }
+  ],
+  "transport_info": {
+    "general_advice": "Tallinn has an efficient public transport system of trams and buses. Use a 'Ühiskaart' (green card) or buy tickets from the driver. Bolt is the most popular ride-sharing app."
+  }
+}
+
+

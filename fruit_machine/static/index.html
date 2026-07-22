@@ -418,7 +418,7 @@ function doSpin(){
   if(AC && AC.state==="suspended") AC.resume();
 
   if(freeActive){ freeSpins--; } else { credits-=bet(); tickJackpots(); }
-  lastWin=0; winCells.clear(); pendingFree=0; pendingJackpot=false;
+  lastWin=0; winCells.clear(); pendingFree=0;
   state="spinning"; spinningCount=REELS; stoppedCount=0;
   const t=now();
   reels.forEach((r,i)=>{ r.phase="cruise"; r.vel=24+Math.random()*7; r.stopAt=t+700+i*230; });

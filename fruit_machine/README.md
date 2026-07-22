@@ -1,19 +1,23 @@
-# 🧧 Aleks' Lucky 8's — 4-Reel Chinese Fortune Slots
+# 🧧 Aleks' Lucky 8's — 88 Fortunes-Style Slots
 
-A high-resolution, graphical slot machine you run in the cloud and play in your
-browser. Four reels, glossy hand-drawn Chinese-fortune symbols (gold coins, red
-lanterns, koi, jade discs, gold ingots, red packets, a 福 fortune tile, and the
-lucky **8**), animated spinning with motion blur, and the two classic
-fruit-machine features:
+A high-resolution, graphical **5×3, 243-ways** slot machine you run in the cloud
+and play in your browser — inspired by the *88 Fortunes* casino games. Glossy
+hand-drawn Chinese-fortune symbols and gilded card royals, animated spinning
+with motion blur, a four-tier progressive jackpot ladder, and two bonus
+features:
 
-- **NUDGE** — randomly awarded after a blank spin. Move any reel up or down one
-  symbol at a time to line up a win.
-- **HOLD** — randomly offered before a spin. Lock the reels you like so they
-  don't spin next time.
+- **Progressive jackpot ladder** — **GRAND / MAJOR / MINOR / MINI** meters that
+  ratchet up on every spin.
+- **福 FU wild** — substitutes for any symbol except the scatters.
+- **Gold-coin Jackpot Pick** — land **3+ gold coins** to launch a pick bonus:
+  tap coins and match **3 of a tier** to win that jackpot.
+- **Free Games** — land **3+ lanterns** for **8 free spins** with all wins
+  **doubled** (re-triggerable).
 
-All graphics are drawn on an HTML5 canvas (no image assets), and sound is
-generated with the Web Audio API, so the whole game is a single self-contained
-page. The server just serves that page.
+Wins are **243 ways**: matching symbols on adjacent reels from reel 1 pay in any
+position — no fixed paylines. All graphics are drawn on an HTML5 canvas (no image
+assets), and sound is generated with the Web Audio API, so the whole game is a
+single self-contained page. The server just serves that page.
 
 ## What's in here
 
@@ -33,17 +37,18 @@ pip install -r requirements.txt
 python server.py            # serves on http://localhost:8080
 ```
 
-Open <http://localhost:8080>. You start with 20 free credits; **＋ Insert Coin**
-adds 10 more.
+Open <http://localhost:8080>. You start with 500 free credits; **＋ Insert Coin**
+adds 100 more.
 
 **Controls**
 
 - **Spin** — click the red button or press `Space`.
-- **Hold** — when HOLD lights up gold, click it under a reel (or press `1`–`4`).
-- **Nudge** — when a reel's ▲ / ▼ light up blue, click them (or press `1`–`4`
-  to nudge down, `Shift`+`1`–`4` to nudge up).
-- **Paytable** — full symbol payouts; 4-of-a-kind is the jackpot, and four
-  **Lucky 8**s pay the top prize of **888**.
+- **Bet** — use the `−` / `+` buttons (or `↓` / `↑` arrows); wins scale with bet.
+- **Jackpot Pick** — when triggered, tap the gold coins to reveal jackpot tiers;
+  match 3 of a tier to win it.
+- **Free Games** — awarded automatically; press `Space` to play each free spin.
+- **Paytable** — full 243-ways payouts and how the wild, jackpot pick, and free
+  games work.
 
 ## Deploy to Google Cloud
 

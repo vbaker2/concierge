@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#12021f" />
+<title>Mega Fruits · 4-Reel Fruit Machine</title>
+<style>
+  :root{
+    --gold:#ffcf4d; --gold-2:#b8860b; --red:#e8342c; --red-2:#8f110c;
+    --panel:#1b0730; --panel-2:#2a0d49; --chrome:#d7dbe4; --chrome-2:#8b90a0;
+    --led:#57ffb0; --ink:#0a0113;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; font-family:'Segoe UI',system-ui,Arial,sans-serif; color:#fff;
+    background:
+      radial-gradient(1200px 700px at 50% -10%, #3a1160 0%, #1a0530 45%, #0a0113 100%),
+      #0a0113;
+    display:flex; align-items:center; justify-content:center;
+    padding:16px; overflow-x:hidden;
+  }
+  .stage{ width:100%; max-width:640px; }
+
+  /* ---------- Cabinet ---------- */
+  .cabinet{
+    position:relative; border-radius:26px; padding:14px;
+    background:
+      linear-gradient(180deg,#f4f6fb 0%, #c3c8d4 12%, #8a90a0 50%, #5c6070 88%, #3a3d49 100%);
+    box-shadow:
+      0 30px 60px rgba(0,0,0,.6),
+      inset 0 2px 2px rgba(255,255,255,.8),
+      inset 0 -6px 14px rgba(0,0,0,.5);
+  }
+  .cabinet-inner{
+    border-radius:18px; padding:14px;
+    background:linear-gradient(180deg,#2a0d49,#160525 60%,#10031d);
+    box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), inset 0 8px 26px rgba(0,0,0,.7);
+  }
+
+  /* ---------- Marquee ---------- */
+  .marquee{ position:relative; text-align:center; padding:14px 12px 12px; }
+  .bulbs{ position:absolute; inset:0; pointer-events:none; }
+  .title{
+    font-weight:900; letter-spacing:2px; line-height:1;
+    font-size:clamp(26px,7vw,44px);
+    background:linear-gradient(180deg,#fff2b0,#ffcf4d 45%,#c8860b 55%,#ffe38a);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 2px 0 #7a4d00) drop-shadow(0 0 14px rgba(255,190,60,.55));
+  }
+  .title small{ display:block; font-size:.34em; letter-spacing:6px; color:#ffdd85;
+    -webkit-text-fill-color:#ffdd85; filter:none; margin-top:6px; opacity:.9;}
+
+  /* ---------- LED message ---------- */
+  .led{
+    margin:10px 6px 12px; border-radius:10px; padding:9px 14px;
+    background:#04150d; border:2px solid #063a24;
+    box-shadow:inset 0 0 18px rgba(0,0,0,.9), 0 0 0 1px rgba(0,0,0,.5);
+    font-family:'Courier New',monospace; font-weight:800; letter-spacing:3px;
+    color:var(--led); text-shadow:0 0 8px var(--led),0 0 18px rgba(87,255,176,.5);
+    text-align:center; font-size:clamp(13px,3.4vw,18px); min-height:38px;
+    display:flex; align-items:center; justify-content:center; overflow:hidden; white-space:nowrap;
+  }
+
+  /* ---------- Reels ---------- */
+  .glass{
+    position:relative; border-radius:14px; padding:10px;
+    background:linear-gradient(180deg,#08111f,#050a13);
+    box-shadow:inset 0 0 0 3px #0c1830, inset 0 0 40px rgba(0,0,0,.8),
+      0 0 0 3px var(--gold-2), 0 0 22px rgba(255,190,60,.25);
+  }
+  canvas#reels{ display:block; width:100%; height:auto; border-radius:8px; touch-action:none;}
+
+  /* ---------- Per-reel controls ---------- */
+  .reelctrls{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+    padding:10px 12px 4px;
+  }
+  .rc{ display:flex; flex-direction:column; align-items:stretch; gap:6px; }
+  .hold{
+    font-weight:900; letter-spacing:1px; border:none; border-radius:9px; padding:9px 4px;
+    color:#3a1600; cursor:pointer; font-size:clamp(11px,2.9vw,14px);
+    background:linear-gradient(180deg,#5a5f6e,#31333d); color:#9aa0b0;
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.25), 0 3px 0 #1c1e26, 0 5px 8px rgba(0,0,0,.5);
+    transition:transform .05s, filter .15s; user-select:none;
+  }
+  .hold.avail{ background:linear-gradient(180deg,#ffe38a,#ffb300); color:#4a2400;
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 3px 0 #a86e00,0 6px 12px rgba(255,170,0,.4);}
+  .hold.on{ background:linear-gradient(180deg,#7dffb0,#12b866); color:#053018; animation:heldpulse 1s infinite;
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 3px 0 #0a6b3c,0 0 14px rgba(70,255,150,.7);}
+  @keyframes heldpulse{50%{filter:brightness(1.25)}}
+  .nudge-row{ display:flex; gap:6px; }
+  .nbtn{ flex:1; border:none; border-radius:8px; padding:7px 0; cursor:pointer; font-size:15px; font-weight:900;
+    background:linear-gradient(180deg,#4a4e5c,#2a2c34); color:#7a8090;
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.18),0 2px 0 #16171d; user-select:none;}
+  .nbtn.avail{ background:linear-gradient(180deg,#8fd0ff,#2f8ee0); color:#042038;
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.55),0 2px 0 #1b5a92,0 0 12px rgba(80,180,255,.6);}
+  .nbtn:active,.hold:active{ transform:translateY(2px); }
+
+  /* ---------- Displays + main controls ---------- */
+  .deck{ display:grid; grid-template-columns:1fr auto 1fr; gap:12px; align-items:center;
+    padding:12px 12px 6px; }
+  .disp{ border-radius:10px; padding:8px 10px; text-align:center;
+    background:#1a0405; border:2px solid #3a0708;
+    box-shadow:inset 0 0 16px rgba(0,0,0,.8); }
+  .disp .lbl{ font-size:10px; letter-spacing:3px; color:#ff9a9a; opacity:.8; }
+  .disp .val{ font-family:'Courier New',monospace; font-weight:900; font-size:clamp(20px,6vw,30px);
+    color:#ff5a4d; text-shadow:0 0 10px rgba(255,60,50,.8); }
+  .disp.win .val{ color:#ffd23e; text-shadow:0 0 12px rgba(255,200,50,.9);}
+  .disp.win .lbl{ color:#ffd88a; }
+
+  .spinwrap{ display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .spin{
+    width:104px; height:104px; border-radius:50%; border:none; cursor:pointer;
+    font-weight:900; font-size:22px; letter-spacing:1px; color:#fff;
+    background:radial-gradient(circle at 38% 32%, #ff6b62, #e8342c 55%, #8f110c 100%);
+    box-shadow:0 8px 0 #5c0906, 0 12px 22px rgba(0,0,0,.6),
+      inset 0 3px 6px rgba(255,255,255,.5), inset 0 -8px 14px rgba(0,0,0,.45);
+    text-shadow:0 2px 3px rgba(0,0,0,.5); transition:transform .06s, box-shadow .06s;
+  }
+  .spin:active{ transform:translateY(6px); box-shadow:0 2px 0 #5c0906,0 5px 12px rgba(0,0,0,.6),
+      inset 0 3px 6px rgba(255,255,255,.5), inset 0 -8px 14px rgba(0,0,0,.45);}
+  .spin:disabled{ filter:grayscale(.6) brightness(.7); cursor:not-allowed; }
+  .spin small{ display:block; font-size:11px; letter-spacing:2px; opacity:.85; font-weight:700;}
+
+  .side-btns{ display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+  .side-btns.right{ align-items:stretch; }
+  .btn{ border:none; border-radius:10px; padding:10px 8px; cursor:pointer; font-weight:800;
+    letter-spacing:1px; font-size:12px; color:#231; user-select:none;
+    background:linear-gradient(180deg,#ffe38a,#ffb300);
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 3px 0 #a86e00,0 5px 10px rgba(0,0,0,.4);
+    transition:transform .05s;}
+  .btn.ghost{ background:linear-gradient(180deg,#4a4e5c,#2a2c34); color:#cfd3dd;
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.2),0 3px 0 #16171d;}
+  .btn:active{ transform:translateY(2px); }
+
+  .foot{ display:flex; justify-content:space-between; align-items:center; padding:6px 12px 4px;
+    font-size:11px; color:#b79ad6; letter-spacing:.5px;}
+  .foot a{ color:#ffcf4d; text-decoration:none; }
+
+  /* Paytable modal */
+  .modal{ position:fixed; inset:0; background:rgba(3,0,10,.82); display:none;
+    align-items:center; justify-content:center; padding:18px; z-index:50; }
+  .modal.open{ display:flex; }
+  .sheet{ width:100%; max-width:440px; background:linear-gradient(180deg,#26093f,#12031f);
+    border:2px solid var(--gold-2); border-radius:16px; padding:18px 18px 14px;
+    box-shadow:0 20px 60px rgba(0,0,0,.7);}
+  .sheet h2{ margin:0 0 10px; color:#ffcf4d; letter-spacing:1px; }
+  .ptable{ width:100%; border-collapse:collapse; font-size:14px; }
+  .ptable td{ padding:7px 6px; border-bottom:1px solid rgba(255,255,255,.08); }
+  .ptable td:first-child{ width:52px; }
+  .ptable td:last-child{ text-align:right; font-weight:800; color:#ffd23e; }
+  .ptable canvas{ vertical-align:middle; }
+  .sheet .rules{ font-size:12.5px; color:#cdbce6; line-height:1.5; margin:12px 2px 4px;}
+  .sheet .close{ margin-top:14px; width:100%; }
+  @media (max-width:420px){
+    .spin{ width:88px; height:88px; font-size:18px;}
+    .deck{ gap:8px; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="cabinet">
+    <div class="cabinet-inner">
+
+      <div class="marquee">
+        <canvas class="bulbs" id="bulbs"></canvas>
+        <div class="title">MEGA FRUITS<small>4 · REEL · NUDGE · HOLD</small></div>
+      </div>
+
+      <div class="led" id="led">INSERT COIN &nbsp;•&nbsp; PRESS SPIN</div>
+
+      <div class="glass">
+        <canvas id="reels"></canvas>
+      </div>
+
+      <div class="reelctrls" id="reelctrls"><!-- built by JS --></div>
+
+      <div class="deck">
+        <div class="disp">
+          <div class="lbl">CREDITS</div><div class="val" id="credits">0</div>
+        </div>
+        <div class="spinwrap">
+          <button class="spin" id="spin">SPIN<small>space</small></button>
+        </div>
+        <div class="disp win">
+          <div class="lbl">WIN</div><div class="val" id="win">0</div>
+        </div>
+      </div>
+
+      <div class="deck" style="grid-template-columns:1fr 1fr 1fr;">
+        <button class="btn" id="coin">＋ INSERT COIN</button>
+        <button class="btn ghost" id="paytableBtn">PAYTABLE</button>
+        <button class="btn ghost" id="soundBtn">🔊 SOUND</button>
+      </div>
+
+      <div class="foot">
+        <span id="feat">Nudges: 0</span>
+        <span>Play for fun · no real money</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h2>Paytable</h2>
+    <table class="ptable" id="ptable"></table>
+    <div class="rules">
+      Wins pay on the centre line by matching symbols across the 4 reels.
+      <b>4 of a kind</b> = jackpot, <b>3 of a kind</b> = solid win, <b>2 cherries</b> = small win.
+      <br><br>
+      <b style="color:#8fd0ff">NUDGE</b> — randomly awarded after a blank spin. Move any reel up/down
+      one symbol at a time to line up a win.
+      <br>
+      <b style="color:#7dffb0">HOLD</b> — randomly offered before a spin. Lock reels you like so they
+      don't spin next time.
+    </div>
+    <button class="btn close" id="closeModal">CLOSE</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   MEGA FRUITS — 4-reel fruit machine with random NUDGE & HOLD
+   Self-contained: all graphics drawn on canvas, sound via WebAudio.
+   ============================================================ */
+
+/* ---------- Symbols (vector art, pre-rendered to sprites) ---------- */
+const SYMBOLS = [
+  { id:"cherry", weight:5, pay:{2:2,3:9,4:40},  draw:drawCherry },
+  { id:"lemon",  weight:4, pay:{3:12,4:60},     draw:drawLemon  },
+  { id:"orange", weight:4, pay:{3:15,4:75},     draw:drawOrange },
+  { id:"plum",   weight:3, pay:{3:20,4:100},    draw:drawPlum   },
+  { id:"bell",   weight:3, pay:{3:30,4:150},    draw:drawBell   },
+  { id:"melon",  weight:2, pay:{3:45,4:225},    draw:drawMelon  },
+  { id:"bar",    weight:2, pay:{3:75,4:400},    draw:drawBar    },
+  { id:"seven",  weight:1, pay:{3:150,4:1000},  draw:drawSeven  },
+];
+const NSYM = SYMBOLS.length;
+
+/* ---------- Geometry ---------- */
+const CW = 600;                 // logical canvas width (css px)
+const MARGIN = 12, GAP = 12;
+const CELLW = (CW - 5*GAP) / 4; // 4 reels evenly spaced
+const CELLH = 118;
+const PAD = 18;
+const CH = 3*CELLH + 2*PAD;     // 3-symbol window
+const CY = PAD + 1.5*CELLH;     // centre-line y
+const REELX = i => GAP + i*(CELLW+GAP);
+const DPR = Math.min(window.devicePixelRatio||1, 2.5);
+
+const canvas = document.getElementById("reels");
+const ctx = canvas.getContext("2d");
+canvas.width  = CW*DPR; canvas.height = CH*DPR;
+canvas.style.aspectRatio = CW+" / "+CH;
+ctx.scale(DPR,DPR);
+
+/* ---------- Pre-render each symbol to a hi-res sprite ---------- */
+const SPRITE_SS = 2; // supersample
+const sprites = SYMBOLS.map(s=>{
+  const c = document.createElement("canvas");
+  c.width = CELLW*SPRITE_SS; c.height = CELLH*SPRITE_SS;
+  const g = c.getContext("2d");
+  g.scale(SPRITE_SS,SPRITE_SS);
+  g.translate(CELLW/2, CELLH/2);
+  const R = Math.min(CELLW,CELLH)*0.5 - 8;
+  s.draw(g, R);
+  return c;
+});
+
+/* ---------- Reel state ---------- */
+function makeStrip(){
+  const pool=[];
+  SYMBOLS.forEach((s,i)=>{ for(let k=0;k<s.weight;k++) pool.push(i); });
+  for(let i=pool.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  return pool;
+}
+const reels = [0,1,2,3].map(()=>({
+  strip: makeStrip(),
+  center: Math.random()*NSYM,   // continuous centred index
+  vel:0, phase:"stopped",
+  stopAt:0, decFrom:0, decTo:0, decStart:0, decDur:0,
+  nudging:false, nFrom:0, nTo:0, nStart:0, nDur:0,
+  held:false,
+}));
+
+/* ---------- Game state ---------- */
+let credits = 20;
+let lastWin = 0;
+let state = "idle";              // idle | spinning | nudging
+let nudges = 0;
+let holdsOffered = false;
+let spinningCount = 0, stoppedCount = 0;
+let winReels = new Set();
+let winFlashUntil = 0;
+let jackpotUntil = 0;
+
+/* ---------- DOM ---------- */
+const $ = id=>document.getElementById(id);
+const ledEl=$("led"), creditsEl=$("credits"), winEl=$("win"),
+      spinBtn=$("spin"), featEl=$("feat");
+let ledMsg="INSERT COIN  •  PRESS SPIN";
+
+function setLed(t){ ledMsg=t; ledEl.textContent=t; }
+function refresh(){
+  creditsEl.textContent = credits;
+  winEl.textContent = lastWin;
+  featEl.textContent = "Nudges: "+nudges;
+  spinBtn.disabled = (state!=="idle");
+  // per-reel controls
+  for(let i=0;i<4;i++){
+    const hold=$("hold"+i), up=$("nup"+i), dn=$("ndn"+i);
+    hold.classList.toggle("avail", holdsOffered && state==="idle");
+    hold.classList.toggle("on", reels[i].held);
+    hold.textContent = reels[i].held ? "HELD" : "HOLD";
+    const canN = state==="nudging" && nudges>0 && !reels[i].nudging;
+    up.classList.toggle("avail", canN);
+    dn.classList.toggle("avail", canN);
+  }
+}
+
+/* ---------- Build per-reel control UI ---------- */
+(function buildControls(){
+  const wrap=$("reelctrls");
+  for(let i=0;i<4;i++){
+    const rc=document.createElement("div"); rc.className="rc";
+    rc.innerHTML =
+      `<button class="hold" id="hold${i}">HOLD</button>
+       <div class="nudge-row">
+         <button class="nbtn" id="ndn${i}" title="Nudge down">▼</button>
+         <button class="nbtn" id="nup${i}" title="Nudge up">▲</button>
+       </div>`;
+    wrap.appendChild(rc);
+  }
+  for(let i=0;i<4;i++){
+    $("hold"+i).onclick = ()=>toggleHold(i);
+    $("nup"+i).onclick  = ()=>nudge(i,+1);
+    $("ndn"+i).onclick  = ()=>nudge(i,-1);
+  }
+})();
+
+/* ---------- Sound (WebAudio, no assets) ---------- */
+let AC=null, soundOn=true, spinOsc=null, spinGain=null;
+function audio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return AC; }
+function tone(freq,dur,type="square",vol=.18,when=0){
+  if(!soundOn) return; const ac=audio(); if(!ac) return;
+  const t=ac.currentTime+when;
+  const o=ac.createOscillator(), g=ac.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq,t);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+dur+0.02);
+}
+function startSpinSound(){
+  if(!soundOn) return; const ac=audio(); if(!ac||spinOsc) return;
+  spinOsc=ac.createOscillator(); spinGain=ac.createGain();
+  spinOsc.type="sawtooth"; spinOsc.frequency.value=48;
+  spinGain.gain.value=0.05; spinOsc.connect(spinGain); spinGain.connect(ac.destination);
+  spinOsc.start();
+}
+function stopSpinSound(){ if(spinOsc){ try{spinOsc.stop();}catch(e){} spinOsc=null; spinGain=null; } }
+function clickSnd(){ tone(220,0.05,"square",0.12); }
+function blip(){ tone(660,0.06,"triangle",0.16); }
+function coinSnd(){ tone(880,0.06,"square",0.14); tone(1320,0.09,"square",0.12,0.05); }
+function winTune(big){
+  const notes = big ? [523,659,784,1047,1319,1047,1319,1568] : [523,659,784,1047];
+  notes.forEach((n,i)=> tone(n,0.16,"square",0.16, i*0.11));
+}
+
+/* ---------- Helpers ---------- */
+const centerIdx = r => (((Math.round(r.center)%NSYM)+NSYM)%NSYM);
+const centerSym = r => r.strip[centerIdx(r)];
+function easeOutBack(t){ const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
+const now = ()=>performance.now();
+
+/* ---------- SPIN ---------- */
+function doSpin(){
+  if(state!=="idle") return;
+  if(credits<1){ setLed("INSERT COIN TO PLAY"); flashLed(); tone(160,0.2,"sawtooth",0.14); return; }
+  if(AC && AC.state==="suspended") AC.resume();
+
+  credits -= 1; lastWin = 0;
+  winReels.clear();
+  state="spinning";
+  spinningCount=0; stoppedCount=0;
+  const t=now();
+  reels.forEach((r,i)=>{
+    if(r.held){ r.held=false; return; }           // held reels stay put, hold consumed
+    spinningCount++;
+    r.phase="cruise";
+    r.vel = 26 + Math.random()*8;                 // symbols / sec
+    r.stopAt = t + 750 + i*280;                    // staggered stop
+  });
+  holdsOffered=false;
+  if(spinningCount===0){ // everything held → treat as immediate result
+    state="idle"; evaluateTurn(); refresh(); return;
+  }
+  setLed("GOOD LUCK…");
+  startSpinSound();
+  refresh();
+}
+
+function onReelStopped(){
+  clickSnd();
+  stoppedCount++;
+  if(stoppedCount>=spinningCount){
+    stopSpinSound();
+    state="idle";
+    evaluateTurn();
+  }
+  refresh();
+}
+
+/* ---------- Evaluate centre line ---------- */
+function evalLine(){
+  const line = reels.map(centerSym);
+  const counts={};
+  line.forEach(s=> counts[s]=(counts[s]||0)+1);
+  let best={win:0, sym:-1, count:0};
+  for(const s in counts){
+    const c=counts[s], sym=SYMBOLS[s];
+    let w=0;
+    if(sym.pay[c]) w=sym.pay[c];
+    if(w>best.win) best={win:w, sym:+s, count:c};
+  }
+  return best;
+}
+
+function evaluateTurn(){
+  const res=evalLine();
+  if(res.win>0){
+    payWin(res);
+  } else {
+    // No win → randomly award a feature
+    const roll=Math.random();
+    if(roll<0.42){                         // NUDGES
+      nudges = 1 + (Math.random()*4|0);    // 1..4
+      state="nudging";
+      setLed("NUDGE! YOU HAVE "+nudges);
+      tone(500,0.08,"triangle",0.16); tone(760,0.1,"triangle",0.14,0.08);
+    } else if(roll<0.80){                   // HOLD next spin
+      holdsOffered=true;
+      setLed("HOLD ANY REEL, THEN SPIN");
+      tone(400,0.1,"triangle",0.14);
+    } else {
+      setLed("NO WIN · SPIN AGAIN");
+    }
+  }
+  refresh();
+}
+
+function payWin(res){
+  lastWin = res.win;
+  credits += res.win;
+  const name = SYMBOLS[res.sym].id.toUpperCase();
+  winReels = new Set(reels.map((r,i)=> centerSym(r)===res.sym ? i : -1).filter(i=>i>=0));
+  winFlashUntil = now()+2400;
+  const big = res.win>=150;
+  if(res.sym===SYMBOLS.findIndex(s=>s.id==="seven") && res.count===4){
+    setLed("★ JACKPOT ★  "+res.win+" CREDITS ★");
+    jackpotUntil = now()+3000;
+  } else {
+    setLed((res.count===4?"BIG WIN! ":"WIN! ")+res.count+"× "+name+"  +"+res.win);
+  }
+  winTune(big);
+  // small chance to still offer holds after a modest win
+  if(res.win<45 && Math.random()<0.4){ holdsOffered=true; }
+}
+
+/* ---------- NUDGE ---------- */
+function nudge(i,dir){
+  if(state!=="nudging" || nudges<=0) return;
+  const r=reels[i];
+  if(r.nudging) return;
+  r.nudging=true; r.nFrom=r.center; r.nTo=r.center+dir;
+  r.nStart=now(); r.nDur=170;
+  nudges--;
+  blip();
+  refresh();
+}
+function onNudgeDone(){
+  // Any reel completed a nudge → check if we're finished
+  const stillMoving = reels.some(r=>r.nudging);
+  if(nudges<=0 && !stillMoving){
+    const res=evalLine();
+    if(res.win>0){ state="idle"; payWin(res); }
+    else{
+      state="idle";
+      if(Math.random()<0.5){ holdsOffered=true; setLed("HOLD & SPIN AGAIN"); }
+      else setLed("OUT OF NUDGES · SPIN");
+    }
+    refresh();
+  } else if(nudges>0){
+    // live feedback if a win is already lined up
+    const res=evalLine();
+    if(res.win>0){ setLed("LINED UP "+res.count+"× — "+ (SYMBOLS[res.sym].id.toUpperCase())); }
+    else setLed("NUDGES LEFT: "+nudges);
+    refresh();
+  }
+}
+
+/* ---------- HOLD ---------- */
+function toggleHold(i){
+  if(!holdsOffered || state!=="idle") return;
+  reels[i].held = !reels[i].held;
+  tone(reels[i].held?720:360,0.05,"square",0.12);
+  refresh();
+}
+
+/* ---------- Insert coin ---------- */
+function insertCoin(){
+  credits += 10; coinSnd();
+  if(state==="idle" && !holdsOffered && nudges===0) setLed("+10 CREDITS · PRESS SPIN");
+  refresh();
+}
+
+/* ---------- Animation loop ---------- */
+let last=now();
+function frame(t){
+  const dt=Math.min((t-last)/1000, 0.05); last=t;
+  const tn=now();
+  for(const r of reels){
+    if(r.phase==="cruise"){
+      r.center += r.vel*dt;
+      if(tn>=r.stopAt){
+        r.phase="decel"; r.decFrom=r.center;
+        r.decTo=Math.ceil(r.center)+2; r.decStart=tn; r.decDur=560;
+      }
+    } else if(r.phase==="decel"){
+      let p=(tn-r.decStart)/r.decDur;
+      if(p>=1){ r.center=((r.decTo%NSYM)+NSYM)%NSYM; r.phase="stopped"; onReelStopped(); }
+      else r.center = r.decFrom + (r.decTo-r.decFrom)*easeOutBack(p);
+    } else if(r.nudging){
+      let p=(tn-r.nStart)/r.nDur;
+      if(p>=1){ r.center=((r.nTo%NSYM)+NSYM)%NSYM; r.nudging=false; onNudgeDone(); }
+      else { const e=1-Math.pow(1-p,3); r.center=r.nFrom+(r.nTo-r.nFrom)*e; }
+    }
+  }
+  render(tn);
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Render ---------- */
+function render(tn){
+  ctx.clearRect(0,0,CW,CH);
+
+  const flashOn = tn<winFlashUntil && Math.floor(tn/180)%2===0;
+
+  for(let i=0;i<4;i++){
+    const r=reels[i], x=REELX(i);
+    // reel background slot
+    roundRect(ctx,x,PAD,CELLW,3*CELLH,10);
+    const bg=ctx.createLinearGradient(0,PAD,0,PAD+3*CELLH);
+    bg.addColorStop(0,"#12203a"); bg.addColorStop(.5,"#0b1526"); bg.addColorStop(1,"#12203a");
+    ctx.fillStyle=bg; ctx.fill();
+
+    ctx.save();
+    roundRect(ctx,x,PAD,CELLW,3*CELLH,10); ctx.clip();
+
+    const base=Math.round(r.center);
+    const frac=r.center-base;
+    const speed=(r.phase==="cruise"||r.phase==="decel");
+    for(let row=-2; row<=2; row++){
+      const idx=(((base+row)%NSYM)+NSYM)%NSYM;
+      const sym=r.strip[idx];
+      const y=CY + (row-frac)*CELLH;
+      if(y<PAD-CELLH || y>PAD+3*CELLH+CELLH) continue;
+      if(speed){
+        // motion blur: stack a few translucent copies
+        ctx.globalAlpha=0.34;
+        ctx.drawImage(sprites[sym], x, y-CELLH/2-10, CELLW, CELLH);
+        ctx.drawImage(sprites[sym], x, y-CELLH/2+10, CELLW, CELLH);
+        ctx.globalAlpha=0.85;
+        ctx.drawImage(sprites[sym], x, y-CELLH/2, CELLW, CELLH);
+        ctx.globalAlpha=1;
+      } else {
+        const win = winReels.has(i) && row===0 && flashOn;
+        if(win){ ctx.save(); ctx.shadowColor="rgba(255,210,60,.95)"; ctx.shadowBlur=26; }
+        ctx.drawImage(sprites[sym], x, y-CELLH/2, CELLW, CELLH);
+        if(win) ctx.restore();
+      }
+    }
+    ctx.restore();
+
+    // dim the top & bottom rows so centre pops
+    const sh=ctx.createLinearGradient(0,PAD,0,PAD+3*CELLH);
+    sh.addColorStop(0,"rgba(4,8,16,.72)"); sh.addColorStop(.28,"rgba(4,8,16,0)");
+    sh.addColorStop(.72,"rgba(4,8,16,0)"); sh.addColorStop(1,"rgba(4,8,16,.72)");
+    ctx.save(); roundRect(ctx,x,PAD,CELLW,3*CELLH,10); ctx.clip();
+    ctx.fillStyle=sh; ctx.fillRect(x,PAD,CELLW,3*CELLH);
+    // glass gloss
+    const gl=ctx.createLinearGradient(x,0,x+CELLW,0);
+    gl.addColorStop(0,"rgba(255,255,255,.10)"); gl.addColorStop(.15,"rgba(255,255,255,.02)");
+    gl.addColorStop(.5,"rgba(255,255,255,0)");
+    ctx.fillStyle=gl; ctx.fillRect(x,PAD,CELLW,3*CELLH);
+    ctx.restore();
+
+    // reel frame
+    roundRect(ctx,x,PAD,CELLW,3*CELLH,10);
+    ctx.lineWidth=3; ctx.strokeStyle="rgba(255,207,77,.35)"; ctx.stroke();
+  }
+
+  // Centre pay-line
+  const y0=CY-CELLH/2, y1=CY+CELLH/2;
+  const winning = winReels.size>0 && tn<winFlashUntil;
+  ctx.save();
+  ctx.strokeStyle = winning ? (flashOn?"rgba(255,225,120,.95)":"rgba(255,180,40,.5)") : "rgba(255,207,77,.55)";
+  ctx.lineWidth= winning?4:2;
+  ctx.shadowColor="rgba(255,190,60,.8)"; ctx.shadowBlur= winning?18:8;
+  ctx.beginPath(); ctx.moveTo(GAP-4,CY); ctx.lineTo(CW-GAP+4,CY); ctx.stroke();
+  // arrows
+  ctx.fillStyle=ctx.strokeStyle; ctx.shadowBlur=0;
+  tri(ctx, 3, CY, 8); tri(ctx, CW-3, CY, -8);
+  ctx.restore();
+
+  // jackpot burst
+  if(tn<jackpotUntil){
+    ctx.save(); ctx.globalAlpha=0.5+0.5*Math.sin(tn/60);
+    ctx.fillStyle="rgba(255,220,80,.10)"; ctx.fillRect(0,0,CW,CH);
+    ctx.restore();
+  }
+}
+
+function tri(c,x,y,d){ c.beginPath(); c.moveTo(x,y); c.lineTo(x-d,y-7); c.lineTo(x-d,y+7); c.closePath(); c.fill(); }
+function roundRect(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+
+/* ============================================================
+   Vector symbol art — each draws centred at (0,0), radius ≈ R
+   ============================================================ */
+function shiny(g,R,c1,c2,c3){
+  const grad=g.createRadialGradient(-R*0.3,-R*0.35,R*0.1,0,0,R*1.1);
+  grad.addColorStop(0,c1); grad.addColorStop(.55,c2); grad.addColorStop(1,c3);
+  return grad;
+}
+function glossHighlight(g,R,cx,cy,rr){
+  g.save(); g.globalAlpha=.55;
+  const hl=g.createRadialGradient(cx,cy,0,cx,cy,rr);
+  hl.addColorStop(0,"rgba(255,255,255,.9)"); hl.addColorStop(1,"rgba(255,255,255,0)");
+  g.fillStyle=hl; g.beginPath(); g.arc(cx,cy,rr,0,7); g.fill(); g.restore();
+}
+function drawCherry(g,R){
+  g.lineWidth=Math.max(3,R*0.09); g.strokeStyle="#2e7d1b"; g.lineCap="round";
+  g.beginPath(); g.moveTo(-R*0.4,R*0.35); g.quadraticCurveTo(0,-R*0.7,R*0.1,-R*0.8); g.stroke();
+  g.beginPath(); g.moveTo(R*0.42,R*0.32); g.quadraticCurveTo(R*0.2,-R*0.4,R*0.12,-R*0.78); g.stroke();
+  // leaf
+  g.fillStyle="#3fae2a"; g.beginPath();
+  g.ellipse(R*0.42,-R*0.72,R*0.28,R*0.13,-0.5,0,7); g.fill();
+  drawBerry(g,-R*0.4,R*0.5,R*0.42);
+  drawBerry(g, R*0.42,R*0.48,R*0.44);
+  function drawBerry(g,cx,cy,rr){
+    g.fillStyle=shiny(g,rr,"#ff6a6a","#e01f26","#8f0a10");
+    g.save(); g.translate(cx,cy);
+    g.beginPath(); g.arc(0,0,rr,0,7); g.fill();
+    glossHighlight(g,rr,-rr*0.32,-rr*0.34,rr*0.5);
+    g.restore();
+  }
+}
+function drawLemon(g,R){
+  g.save(); g.rotate(-0.35);
+  g.fillStyle=shiny(g,R,"#fff6a0","#ffd21f","#c99400");
+  g.beginPath(); g.ellipse(0,0,R*0.95,R*0.68,0,0,7); g.fill();
+  // nubs
+  g.fillStyle="#c99400"; g.beginPath(); g.ellipse(R*0.95,0,R*0.1,R*0.08,0,0,7); g.fill();
+  g.beginPath(); g.ellipse(-R*0.95,0,R*0.1,R*0.08,0,0,7); g.fill();
+  glossHighlight(g,R,-R*0.3,-R*0.28,R*0.55);
+  g.restore();
+  g.fillStyle="#3fae2a"; g.beginPath();
+  g.ellipse(R*0.55,-R*0.55,R*0.26,R*0.12,-0.7,0,7); g.fill();
+}
+function drawOrange(g,R){
+  g.fillStyle=shiny(g,R,"#ffc06a","#ff8c1a","#c85e00");
+  g.beginPath(); g.arc(0,0,R*0.9,0,7); g.fill();
+  g.save(); g.globalAlpha=.18; g.fillStyle="#7a3800";
+  for(let i=0;i<16;i++){ const a=i/16*7; g.beginPath(); g.arc(Math.cos(a)*R*0.55,Math.sin(a)*R*0.55,R*0.05,0,7); g.fill(); }
+  g.restore();
+  glossHighlight(g,R,-R*0.3,-R*0.32,R*0.55);
+  g.fillStyle="#8a4b00"; g.beginPath(); g.arc(0,-R*0.9,R*0.09,0,7); g.fill();
+  g.fillStyle="#3fae2a"; g.beginPath(); g.ellipse(R*0.28,-R*0.9,R*0.26,R*0.12,-0.5,0,7); g.fill();
+}
+function drawPlum(g,R){
+  // grape cluster
+  const pts=[[0,-R*0.45],[-R*0.34,-R*0.12],[R*0.34,-R*0.12],[-R*0.55,R*0.28],[0,R*0.15],[R*0.55,R*0.28],[-R*0.27,R*0.6],[R*0.27,R*0.6],[0,R*0.78]];
+  g.fillStyle="#3fae2a"; g.beginPath(); g.ellipse(R*0.2,-R*0.7,R*0.28,R*0.13,-0.5,0,7); g.fill();
+  g.lineWidth=Math.max(2,R*0.06); g.strokeStyle="#5a3a12";
+  g.beginPath(); g.moveTo(0,-R*0.55); g.lineTo(0,-R*0.85); g.stroke();
+  for(const [cx,cy] of pts){
+    g.fillStyle=shiny(g,R*0.3,"#b98cff","#7a34d6","#42106f");
+    g.save(); g.translate(cx,cy);
+    g.beginPath(); g.arc(0,0,R*0.27,0,7); g.fill();
+    glossHighlight(g,R*0.27,-R*0.09,-R*0.09,R*0.16);
+    g.restore();
+  }
+}
+function drawBell(g,R){
+  g.fillStyle=shiny(g,R,"#fff2b0","#ffcb2e","#a9760a");
+  g.beginPath();
+  g.moveTo(0,-R*0.8);
+  g.quadraticCurveTo(R*0.72,-R*0.7,R*0.7,R*0.35);
+  g.lineTo(R*0.82,R*0.5); g.lineTo(-R*0.82,R*0.5); g.lineTo(-R*0.7,R*0.35);
+  g.quadraticCurveTo(-R*0.72,-R*0.7,0,-R*0.8);
+  g.closePath(); g.fill();
+  g.strokeStyle="#8a5e00"; g.lineWidth=Math.max(2,R*0.05); g.stroke();
+  glossHighlight(g,R,-R*0.22,-R*0.2,R*0.42);
+  // clapper
+  g.fillStyle="#7a4e00"; g.beginPath(); g.arc(0,R*0.66,R*0.14,0,7); g.fill();
+  g.fillStyle="#5a3900"; g.beginPath(); g.arc(0,-R*0.82,R*0.1,0,7); g.fill();
+}
+function drawMelon(g,R){
+  g.fillStyle=shiny(g,R,"#7de08a","#2fae4a","#12662a");
+  g.beginPath(); g.arc(0,0,R*0.9,0,7); g.fill();
+  g.save(); g.strokeStyle="#0e5322"; g.lineWidth=Math.max(3,R*0.09);
+  for(let i=0;i<6;i++){ const a=i/6*Math.PI; g.beginPath();
+    g.ellipse(0,0,R*0.9*Math.abs(Math.cos(a))*0.9+R*0.05,R*0.9,a,Math.PI*0.15,Math.PI*0.85); g.stroke(); }
+  g.restore();
+  glossHighlight(g,R,-R*0.32,-R*0.34,R*0.5);
+}
+function drawBar(g,R){
+  roundRectPath(g,-R*0.92,-R*0.42,R*1.84,R*0.84,R*0.14);
+  g.fillStyle=shiny(g,R,"#fff0c0","#ffc832","#9a6a00"); g.fill();
+  g.strokeStyle="#6e4a00"; g.lineWidth=Math.max(2,R*0.05); g.stroke();
+  g.fillStyle="#5a2b00"; g.font="900 "+(R*0.62)+"px Arial"; g.textAlign="center"; g.textBaseline="middle";
+  g.fillText("BAR",0,R*0.03);
+  glossHighlight(g,R,-R*0.3,-R*0.22,R*0.4);
+}
+function drawSeven(g,R){
+  // red glossy 7 with gold trim
+  g.fillStyle=shiny(g,R,"#ff7a72","#e8342c","#8f110c");
+  g.strokeStyle="#ffd23e"; g.lineWidth=Math.max(4,R*0.12); g.lineJoin="round";
+  g.font="900 "+(R*1.7)+"px Arial"; g.textAlign="center"; g.textBaseline="middle";
+  g.strokeText("7",0,R*0.06); g.fillText("7",0,R*0.06);
+  g.save(); g.globalAlpha=.4; g.fillStyle="#fff";
+  g.font="900 "+(R*1.7)+"px Arial"; g.fillText("7",-R*0.03,R*0.02); g.restore();
+}
+function roundRectPath(g,x,y,w,h,r){
+  g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath();
+}
+
+/* ---------- Marquee bulbs ---------- */
+const bulbs=$("bulbs"), bctx=bulbs.getContext("2d");
+function sizeBulbs(){
+  const r=bulbs.parentElement.getBoundingClientRect();
+  bulbs.width=r.width*DPR; bulbs.height=r.height*DPR;
+  bulbs.style.width=r.width+"px"; bulbs.style.height=r.height+"px";
+}
+function drawBulbs(t){
+  const w=bulbs.width, h=bulbs.height, R=5*DPR, n=Math.max(8,Math.floor(w/(26*DPR)));
+  bctx.clearRect(0,0,w,h);
+  const path=[];
+  for(let i=0;i<n;i++) path.push([12*DPR+i*(w-24*DPR)/(n-1), 8*DPR]);
+  for(let i=0;i<n;i++) path.push([w-12*DPR-i*(w-24*DPR)/(n-1), h-8*DPR]);
+  path.forEach((p,i)=>{
+    const on=(Math.floor(t/220)+i)%2===0;
+    bctx.beginPath(); bctx.arc(p[0],p[1],R,0,7);
+    bctx.fillStyle= on?"#ffe27a":"#6b4a00";
+    if(on){ bctx.shadowColor="rgba(255,210,80,.9)"; bctx.shadowBlur=12*DPR; } else bctx.shadowBlur=0;
+    bctx.fill();
+  });
+}
+
+/* ---------- LED flash on error ---------- */
+let ledFlash=0;
+function flashLed(){ ledFlash=now()+800; }
+function ledTick(t){
+  if(t<ledFlash){ ledEl.style.color=(Math.floor(t/120)%2)?"#ff5a4d":"#57ffb0"; }
+  else ledEl.style.color="";
+}
+
+/* ---------- Master RAF (game + decoration) ---------- */
+function master(t){ drawBulbs(t); ledTick(t); requestAnimationFrame(master); }
+requestAnimationFrame(frame);
+requestAnimationFrame(master);
+
+/* ---------- Wire up buttons & keys ---------- */
+spinBtn.onclick = doSpin;
+$("coin").onclick = insertCoin;
+$("soundBtn").onclick = ()=>{ soundOn=!soundOn; if(!soundOn) stopSpinSound();
+  $("soundBtn").textContent = soundOn?"🔊 SOUND":"🔇 MUTED"; if(soundOn) blip(); };
+$("paytableBtn").onclick = ()=>$("modal").classList.add("open");
+$("closeModal").onclick = ()=>$("modal").classList.remove("open");
+$("modal").onclick = e=>{ if(e.target===$("modal")) $("modal").classList.remove("open"); };
+
+document.addEventListener("keydown", e=>{
+  if(e.repeat) return;
+  if(e.code==="Space"){ e.preventDefault(); doSpin(); }
+  else if(e.key>="1" && e.key<="4"){
+    const i=+e.key-1;
+    if(state==="idle" && holdsOffered) toggleHold(i);
+    else if(state==="nudging") nudge(i, e.shiftKey?+1:-1);
+  } else if(e.key==="c"||e.key==="C"){ insertCoin(); }
+});
+
+/* ---------- Build paytable modal ---------- */
+(function buildPaytable(){
+  const tbl=$("ptable");
+  SYMBOLS.slice().reverse().forEach(s=>{
+    const tr=document.createElement("tr");
+    const c=document.createElement("canvas"); c.width=44; c.height=44;
+    const g=c.getContext("2d"); g.translate(22,22); s.draw(g,17);
+    const td0=document.createElement("td"); td0.appendChild(c);
+    const parts=[]; if(s.pay[4])parts.push("4× = "+s.pay[4]); if(s.pay[3])parts.push("3× = "+s.pay[3]); if(s.pay[2])parts.push("2× = "+s.pay[2]);
+    const td1=document.createElement("td"); td1.textContent=s.id.toUpperCase();
+    const td2=document.createElement("td"); td2.textContent=parts.join("   ");
+    tr.append(td0,td1,td2); tbl.appendChild(tr);
+  });
+})();
+
+window.addEventListener("resize", sizeBulbs);
+sizeBulbs();
+refresh();
+setLed("PRESS SPIN TO PLAY  •  20 FREE CREDITS");
+</script>
+</body>
+</html>

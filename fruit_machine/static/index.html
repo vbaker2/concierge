@@ -557,16 +557,19 @@ function endSpin(){
 }
 function countSym(grid,sIdx){ let c=0; for(let i=0;i<REELS;i++)for(let r=0;r<ROWS;r++) if(grid[i][r]===sIdx)c++; return c; }
 
-/* ---------- Win presentation (count-up) ---------- */
+/* ---------- Win presentation (count-up) ----------
+   Credits the full amount IMMEDIATELY and atomically; the animation only
+   drives the on-screen number, so nothing can ever be partially credited. */
 function presentWin(total, done){
+  credits += total; lastWin = total;          // real balance updated in full, up front
+  const target=credits, base=credits-total;
   const start=now(), dur=Math.min(1400, 500+total*2);
-  const from=credits;
   (function step(){
     const p=Math.min(1,(now()-start)/dur);
-    const shown=Math.round(total*p);
-    $("win").textContent=shown.toLocaleString();
-    credits=from+shown; $("credits").textContent=credits.toLocaleString();
-    if(p<1) requestAnimationFrame(step); else { credits=from+total; lastWin=total; refresh(); done&&done(); }
+    $("win").textContent = Math.round(total*p).toLocaleString();
+    $("credits").textContent = Math.round(base+total*p).toLocaleString();
+    if(p<1) requestAnimationFrame(step);
+    else { $("credits").textContent=target.toLocaleString(); refresh(); done&&done(); }
   })();
 }
 
@@ -616,12 +619,11 @@ function tierColor(k){ return {mini:"#d89a5a",minor:"#cfd6e0",major:"#f0c040",gr
 function tierLab(k){ return {mini:"MINI",minor:"MINOR",major:"MAJOR",grand:"GRAND"}[k]; }
 function awardJackpot(k){
   const amt=Math.round(JP[k]);
-  credits+=amt; lastWin=amt;
   $("jp-"+k).classList.add("win");
-  JP[k]=JP_SEED[k];  // reset pool
+  JP[k]=JP_SEED[k];  // reset pool to its seed
   setLed("★ "+tierLab(k)+" JACKPOT · "+amt.toLocaleString()+"! ★");
   winTune(true); coinRainUntil=now()+2600;
-  refresh();
+  presentWin(amt, null);   // full jackpot credited atomically, then animated
   setTimeout(()=>{
     $("bonusModal").classList.remove("open");
     $("jp-"+k).classList.remove("win");

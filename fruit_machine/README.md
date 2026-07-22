@@ -9,8 +9,10 @@ features:
 - **Progressive jackpot ladder** — **GRAND / MAJOR / MINOR / MINI** meters that
   ratchet up on every spin.
 - **福 FU wild** — substitutes for any symbol except the scatters.
-- **Gold-coin Jackpot Pick** — land **3+ gold coins** to launch a pick bonus:
-  tap coins and match **3 of a tier** to win that jackpot.
+- **Cash Pot** — every gold coin that stops on the reels drifts in an arc into
+  the half-open pot below the reels. Fill it (8 coins, across as many spins as it
+  takes) and the lid slams shut to launch the **Jackpot Pick**: tap coins and
+  match **3 of a tier** to win that jackpot. The pot then empties and reopens.
 - **Free Games** — land **3+ lanterns** for **8 free spins** with all wins
   **doubled** (re-triggerable).
 

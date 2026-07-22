@@ -1,8 +1,10 @@
-# 🍒 Mega Fruits — 4-Reel Fruit Machine
+# 🧧 Aleks' Lucky 8's — 4-Reel Chinese Fortune Slots
 
-A high-resolution, graphical fruit machine you run in the cloud and play in your
-browser. Four reels, glossy hand-drawn fruit symbols, animated spinning with
-motion blur, and the two classic British fruit-machine features:
+A high-resolution, graphical slot machine you run in the cloud and play in your
+browser. Four reels, glossy hand-drawn Chinese-fortune symbols (gold coins, red
+lanterns, koi, jade discs, gold ingots, red packets, a 福 fortune tile, and the
+lucky **8**), animated spinning with motion blur, and the two classic
+fruit-machine features:
 
 - **NUDGE** — randomly awarded after a blank spin. Move any reel up or down one
   symbol at a time to line up a win.
@@ -40,8 +42,8 @@ adds 10 more.
 - **Hold** — when HOLD lights up gold, click it under a reel (or press `1`–`4`).
 - **Nudge** — when a reel's ▲ / ▼ light up blue, click them (or press `1`–`4`
   to nudge down, `Shift`+`1`–`4` to nudge up).
-- **Paytable** — full symbol payouts; 4-of-a-kind is the jackpot, three sevens
-  or four sevens pay big.
+- **Paytable** — full symbol payouts; 4-of-a-kind is the jackpot, and four
+  **Lucky 8**s pay the top prize of **888**.
 
 ## Deploy to Google Cloud
 
@@ -51,14 +53,14 @@ The simplest path: build from source and deploy in one command. Run this from
 inside the `fruit_machine/` directory.
 
 ```bash
-gcloud run deploy mega-fruits \
+gcloud run deploy lucky-8s \
   --source . \
   --region europe-west2 \
   --allow-unauthenticated
 ```
 
 `gcloud` builds the container from the `Dockerfile`, pushes it, and prints a
-public `https://mega-fruits-....run.app` URL you can open on any device. Cloud
+public `https://lucky-8s-....run.app` URL you can open on any device. Cloud
 Run passes `$PORT` (8080), scales to zero when idle, and costs nothing while
 nobody is playing.
 
@@ -83,8 +85,8 @@ runtime and scales to zero.
 ### Option C — plain container anywhere
 
 ```bash
-docker build -t mega-fruits .
-docker run -p 8080:8080 mega-fruits
+docker build -t lucky-8s .
+docker run -p 8080:8080 lucky-8s
 # then open http://localhost:8080
 ```
 

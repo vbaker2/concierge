@@ -4,20 +4,20 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <meta name="theme-color" content="#12021f" />
-<title>Mega Fruits · 4-Reel Fruit Machine</title>
+<title>Aleks' Lucky 8's · Chinese Fortune Slots</title>
 <style>
   :root{
     --gold:#ffcf4d; --gold-2:#b8860b; --red:#e8342c; --red-2:#8f110c;
-    --panel:#1b0730; --panel-2:#2a0d49; --chrome:#d7dbe4; --chrome-2:#8b90a0;
-    --led:#57ffb0; --ink:#0a0113;
+    --panel:#3a0708; --panel-2:#5a0d10; --chrome:#e6dcc0; --chrome-2:#a8925c;
+    --led:#ffd257; --ink:#160203;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
   body{
     margin:0; font-family:'Segoe UI',system-ui,Arial,sans-serif; color:#fff;
     background:
-      radial-gradient(1200px 700px at 50% -10%, #3a1160 0%, #1a0530 45%, #0a0113 100%),
-      #0a0113;
+      radial-gradient(1200px 700px at 50% -10%, #7a0f14 0%, #3a0508 45%, #160203 100%),
+      #160203;
     display:flex; align-items:center; justify-content:center;
     padding:16px; overflow-x:hidden;
   }
@@ -27,15 +27,15 @@
   .cabinet{
     position:relative; border-radius:26px; padding:14px;
     background:
-      linear-gradient(180deg,#f4f6fb 0%, #c3c8d4 12%, #8a90a0 50%, #5c6070 88%, #3a3d49 100%);
+      linear-gradient(180deg,#fff2c0 0%, #f0cf6a 12%, #d0a02e 50%, #9a6e12 88%, #6e4c08 100%);
     box-shadow:
       0 30px 60px rgba(0,0,0,.6),
       inset 0 2px 2px rgba(255,255,255,.8),
-      inset 0 -6px 14px rgba(0,0,0,.5);
+      inset 0 -6px 14px rgba(90,50,0,.5);
   }
   .cabinet-inner{
     border-radius:18px; padding:14px;
-    background:linear-gradient(180deg,#2a0d49,#160525 60%,#10031d);
+    background:linear-gradient(180deg,#5a0d10,#2e0506 60%,#1c0304);
     box-shadow:inset 0 0 0 2px rgba(255,255,255,.06), inset 0 8px 26px rgba(0,0,0,.7);
   }
 
@@ -55,10 +55,10 @@
   /* ---------- LED message ---------- */
   .led{
     margin:10px 6px 12px; border-radius:10px; padding:9px 14px;
-    background:#04150d; border:2px solid #063a24;
+    background:#1a0602; border:2px solid #4a1508;
     box-shadow:inset 0 0 18px rgba(0,0,0,.9), 0 0 0 1px rgba(0,0,0,.5);
     font-family:'Courier New',monospace; font-weight:800; letter-spacing:3px;
-    color:var(--led); text-shadow:0 0 8px var(--led),0 0 18px rgba(87,255,176,.5);
+    color:var(--led); text-shadow:0 0 8px var(--led),0 0 18px rgba(255,190,60,.5);
     text-align:center; font-size:clamp(13px,3.4vw,18px); min-height:38px;
     display:flex; align-items:center; justify-content:center; overflow:hidden; white-space:nowrap;
   }
@@ -66,7 +66,7 @@
   /* ---------- Reels ---------- */
   .glass{
     position:relative; border-radius:14px; padding:10px;
-    background:linear-gradient(180deg,#08111f,#050a13);
+    background:linear-gradient(180deg,#1f0705,#120302);
     box-shadow:inset 0 0 0 3px #0c1830, inset 0 0 40px rgba(0,0,0,.8),
       0 0 0 3px var(--gold-2), 0 0 22px rgba(255,190,60,.25);
   }
@@ -136,14 +136,14 @@
   .btn:active{ transform:translateY(2px); }
 
   .foot{ display:flex; justify-content:space-between; align-items:center; padding:6px 12px 4px;
-    font-size:11px; color:#b79ad6; letter-spacing:.5px;}
+    font-size:11px; color:#d8b877; letter-spacing:.5px;}
   .foot a{ color:#ffcf4d; text-decoration:none; }
 
   /* Paytable modal */
   .modal{ position:fixed; inset:0; background:rgba(3,0,10,.82); display:none;
     align-items:center; justify-content:center; padding:18px; z-index:50; }
   .modal.open{ display:flex; }
-  .sheet{ width:100%; max-width:440px; background:linear-gradient(180deg,#26093f,#12031f);
+  .sheet{ width:100%; max-width:440px; background:linear-gradient(180deg,#4a0a0d,#1e0304);
     border:2px solid var(--gold-2); border-radius:16px; padding:18px 18px 14px;
     box-shadow:0 20px 60px rgba(0,0,0,.7);}
   .sheet h2{ margin:0 0 10px; color:#ffcf4d; letter-spacing:1px; }
@@ -152,7 +152,7 @@
   .ptable td:first-child{ width:52px; }
   .ptable td:last-child{ text-align:right; font-weight:800; color:#ffd23e; }
   .ptable canvas{ vertical-align:middle; }
-  .sheet .rules{ font-size:12.5px; color:#cdbce6; line-height:1.5; margin:12px 2px 4px;}
+  .sheet .rules{ font-size:12.5px; color:#e6cfa0; line-height:1.5; margin:12px 2px 4px;}
   .sheet .close{ margin-top:14px; width:100%; }
   @media (max-width:420px){
     .spin{ width:88px; height:88px; font-size:18px;}
@@ -167,7 +167,7 @@
 
       <div class="marquee">
         <canvas class="bulbs" id="bulbs"></canvas>
-        <div class="title">MEGA FRUITS<small>4 · REEL · NUDGE · HOLD</small></div>
+        <div class="title">Aleks' Lucky 8's<small>福 · NUDGE · HOLD · 4 REELS · 福</small></div>
       </div>
 
       <div class="led" id="led">INSERT COIN &nbsp;•&nbsp; PRESS SPIN</div>
@@ -210,7 +210,8 @@
     <table class="ptable" id="ptable"></table>
     <div class="rules">
       Wins pay on the centre line by matching symbols across the 4 reels.
-      <b>4 of a kind</b> = jackpot, <b>3 of a kind</b> = solid win, <b>2 cherries</b> = small win.
+      <b>4 of a kind</b> = jackpot — four <b>Lucky 8</b>s pays <b>888</b>. Three of a kind = solid win,
+      2 gold coins = small win.
       <br><br>
       <b style="color:#8fd0ff">NUDGE</b> — randomly awarded after a blank spin. Move any reel up/down
       one symbol at a time to line up a win.
@@ -231,14 +232,14 @@
 
 /* ---------- Symbols (vector art, pre-rendered to sprites) ---------- */
 const SYMBOLS = [
-  { id:"cherry", weight:5, pay:{2:2,3:9,4:40},  draw:drawCherry },
-  { id:"lemon",  weight:4, pay:{3:12,4:60},     draw:drawLemon  },
-  { id:"orange", weight:4, pay:{3:15,4:75},     draw:drawOrange },
-  { id:"plum",   weight:3, pay:{3:20,4:100},    draw:drawPlum   },
-  { id:"bell",   weight:3, pay:{3:30,4:150},    draw:drawBell   },
-  { id:"melon",  weight:2, pay:{3:45,4:225},    draw:drawMelon  },
-  { id:"bar",    weight:2, pay:{3:75,4:400},    draw:drawBar    },
-  { id:"seven",  weight:1, pay:{3:150,4:1000},  draw:drawSeven  },
+  { id:"coin",     name:"GOLD COIN",  weight:5, pay:{2:2,3:9,4:40},   draw:drawCoin     },
+  { id:"lantern",  name:"LANTERN",    weight:4, pay:{3:12,4:60},      draw:drawLantern  },
+  { id:"koi",      name:"KOI FISH",   weight:4, pay:{3:15,4:75},      draw:drawKoi      },
+  { id:"jade",     name:"JADE",       weight:3, pay:{3:20,4:100},     draw:drawJade     },
+  { id:"ingot",    name:"GOLD INGOT", weight:3, pay:{3:30,4:150},     draw:drawIngot    },
+  { id:"envelope", name:"RED PACKET", weight:2, pay:{3:45,4:225},     draw:drawEnvelope },
+  { id:"fu",       name:"FORTUNE",    weight:2, pay:{3:88,4:488},     draw:drawFu       },
+  { id:"eight",    name:"LUCKY 8",    weight:1, pay:{3:188,4:888},    draw:drawEight    },
 ];
 const NSYM = SYMBOLS.length;
 
@@ -456,12 +457,12 @@ function evaluateTurn(){
 function payWin(res){
   lastWin = res.win;
   credits += res.win;
-  const name = SYMBOLS[res.sym].id.toUpperCase();
+  const name = SYMBOLS[res.sym].name;
   winReels = new Set(reels.map((r,i)=> centerSym(r)===res.sym ? i : -1).filter(i=>i>=0));
   winFlashUntil = now()+2400;
   const big = res.win>=150;
-  if(res.sym===SYMBOLS.findIndex(s=>s.id==="seven") && res.count===4){
-    setLed("★ JACKPOT ★  "+res.win+" CREDITS ★");
+  if(res.sym===SYMBOLS.findIndex(s=>s.id==="eight") && res.count===4){
+    setLed("★ 888 JACKPOT ★  "+res.win+" ★");
     jackpotUntil = now()+3000;
   } else {
     setLed((res.count===4?"BIG WIN! ":"WIN! ")+res.count+"× "+name+"  +"+res.win);
@@ -497,7 +498,7 @@ function onNudgeDone(){
   } else if(nudges>0){
     // live feedback if a win is already lined up
     const res=evalLine();
-    if(res.win>0){ setLed("LINED UP "+res.count+"× — "+ (SYMBOLS[res.sym].id.toUpperCase())); }
+    if(res.win>0){ setLed("LINED UP "+res.count+"× — "+ SYMBOLS[res.sym].name); }
     else setLed("NUDGES LEFT: "+nudges);
     refresh();
   }
@@ -555,7 +556,7 @@ function render(tn){
     // reel background slot
     roundRect(ctx,x,PAD,CELLW,3*CELLH,10);
     const bg=ctx.createLinearGradient(0,PAD,0,PAD+3*CELLH);
-    bg.addColorStop(0,"#12203a"); bg.addColorStop(.5,"#0b1526"); bg.addColorStop(1,"#12203a");
+    bg.addColorStop(0,"#2a0d0a"); bg.addColorStop(.5,"#180605"); bg.addColorStop(1,"#2a0d0a");
     ctx.fillStyle=bg; ctx.fill();
 
     ctx.save();
@@ -646,98 +647,124 @@ function glossHighlight(g,R,cx,cy,rr){
   hl.addColorStop(0,"rgba(255,255,255,.9)"); hl.addColorStop(1,"rgba(255,255,255,0)");
   g.fillStyle=hl; g.beginPath(); g.arc(cx,cy,rr,0,7); g.fill(); g.restore();
 }
-function drawCherry(g,R){
-  g.lineWidth=Math.max(3,R*0.09); g.strokeStyle="#2e7d1b"; g.lineCap="round";
-  g.beginPath(); g.moveTo(-R*0.4,R*0.35); g.quadraticCurveTo(0,-R*0.7,R*0.1,-R*0.8); g.stroke();
-  g.beginPath(); g.moveTo(R*0.42,R*0.32); g.quadraticCurveTo(R*0.2,-R*0.4,R*0.12,-R*0.78); g.stroke();
-  // leaf
-  g.fillStyle="#3fae2a"; g.beginPath();
-  g.ellipse(R*0.42,-R*0.72,R*0.28,R*0.13,-0.5,0,7); g.fill();
-  drawBerry(g,-R*0.4,R*0.5,R*0.42);
-  drawBerry(g, R*0.42,R*0.48,R*0.44);
-  function drawBerry(g,cx,cy,rr){
-    g.fillStyle=shiny(g,rr,"#ff6a6a","#e01f26","#8f0a10");
-    g.save(); g.translate(cx,cy);
-    g.beginPath(); g.arc(0,0,rr,0,7); g.fill();
-    glossHighlight(g,rr,-rr*0.32,-rr*0.34,rr*0.5);
-    g.restore();
-  }
+// 1) Gold coin — round cash coin with square hole
+function drawCoin(g,R){
+  g.fillStyle=shiny(g,R,"#fff2b8","#e8b53a","#9a6a10");
+  g.beginPath(); g.arc(0,0,R*0.92,0,7); g.fill();
+  g.lineWidth=R*0.09; g.strokeStyle="#b8860b"; g.beginPath(); g.arc(0,0,R*0.84,0,7); g.stroke();
+  g.lineWidth=R*0.04; g.strokeStyle="#7a5200"; g.beginPath(); g.arc(0,0,R*0.6,0,7); g.stroke();
+  // four tick "characters" between hole and rim
+  g.fillStyle="#7a5200";
+  for(let k=0;k<4;k++){ g.save(); g.rotate(k*Math.PI/2); g.fillRect(-R*0.07,-R*0.74,R*0.14,R*0.2); g.restore(); }
+  // square hole
+  const h=R*0.28;
+  g.fillStyle="#180605"; g.fillRect(-h,-h,2*h,2*h);
+  g.lineWidth=R*0.05; g.strokeStyle="#7a5200"; g.strokeRect(-h,-h,2*h,2*h);
+  glossHighlight(g,R,-R*0.32,-R*0.36,R*0.5);
 }
-function drawLemon(g,R){
-  g.save(); g.rotate(-0.35);
-  g.fillStyle=shiny(g,R,"#fff6a0","#ffd21f","#c99400");
-  g.beginPath(); g.ellipse(0,0,R*0.95,R*0.68,0,0,7); g.fill();
-  // nubs
-  g.fillStyle="#c99400"; g.beginPath(); g.ellipse(R*0.95,0,R*0.1,R*0.08,0,0,7); g.fill();
-  g.beginPath(); g.ellipse(-R*0.95,0,R*0.1,R*0.08,0,0,7); g.fill();
-  glossHighlight(g,R,-R*0.3,-R*0.28,R*0.55);
+// 2) Red lantern
+function drawLantern(g,R){
+  g.fillStyle=shiny(g,R*0.6,"#ffe9a0","#e0a828","#8a5c00");
+  roundRectPath(g,-R*0.3,-R*0.9,R*0.6,R*0.18,R*0.04); g.fill();
+  roundRectPath(g,-R*0.3,R*0.62,R*0.6,R*0.18,R*0.04); g.fill();
+  g.fillStyle=shiny(g,R,"#ff6b5a","#d81f2a","#7a0a10");
+  g.beginPath(); g.ellipse(0,-R*0.14,R*0.74,R*0.78,0,0,7); g.fill();
+  g.strokeStyle="#8a0a12"; g.lineWidth=R*0.05;
+  g.beginPath(); g.ellipse(0,-R*0.14,R*0.74,R*0.78,0,0,7); g.stroke();
+  g.strokeStyle="rgba(122,10,16,.55)"; g.lineWidth=R*0.05;
+  for(let k=-2;k<=2;k++){ const x=k*R*0.27; g.beginPath(); g.moveTo(x,-R*0.86); g.quadraticCurveTo(x*1.15,-R*0.14,x,R*0.56); g.stroke(); }
+  g.strokeStyle="#e0a828"; g.lineWidth=R*0.06;
+  g.beginPath(); g.moveTo(0,R*0.78); g.lineTo(0,R*0.94); g.stroke();
+  g.fillStyle="#d81f2a"; g.beginPath(); g.moveTo(-R*0.12,R*0.92); g.lineTo(R*0.12,R*0.92); g.lineTo(0,R*1.12); g.closePath(); g.fill();
+  glossHighlight(g,R*0.7,-R*0.3,-R*0.4,R*0.42);
+}
+// 3) Koi fish
+function drawKoi(g,R){
+  g.save(); g.rotate(-0.28);
+  g.fillStyle=shiny(g,R,"#ffd1a0","#ff7a2a","#c04a00");
+  g.beginPath(); g.moveTo(-R*0.2,0); g.quadraticCurveTo(-R*0.95,-R*0.55,-R*0.98,-R*0.08);
+  g.quadraticCurveTo(-R*0.68,0,-R*0.98,R*0.08); g.quadraticCurveTo(-R*0.95,R*0.55,-R*0.2,0); g.fill();
+  g.fillStyle=shiny(g,R,"#fff2e0","#ff8c3a","#c85a10");
+  g.beginPath(); g.ellipse(R*0.18,0,R*0.66,R*0.42,0,0,7); g.fill();
+  g.fillStyle="#e02a1a";
+  g.beginPath(); g.ellipse(R*0.02,-R*0.08,R*0.22,R*0.15,0,0,7); g.fill();
+  g.beginPath(); g.ellipse(R*0.52,R*0.06,R*0.14,R*0.1,0,0,7); g.fill();
+  g.fillStyle="rgba(255,140,60,.8)";
+  g.beginPath(); g.moveTo(R*0.1,-R*0.38); g.quadraticCurveTo(R*0.22,-R*0.66,R*0.42,-R*0.34); g.closePath(); g.fill();
+  g.fillStyle="#180605"; g.beginPath(); g.arc(R*0.64,-R*0.06,R*0.07,0,7); g.fill();
+  glossHighlight(g,R*0.6,R*0.42,-R*0.2,R*0.3);
   g.restore();
-  g.fillStyle="#3fae2a"; g.beginPath();
-  g.ellipse(R*0.55,-R*0.55,R*0.26,R*0.12,-0.7,0,7); g.fill();
 }
-function drawOrange(g,R){
-  g.fillStyle=shiny(g,R,"#ffc06a","#ff8c1a","#c85e00");
+// 4) Jade disc (bi)
+function drawJade(g,R){
+  g.fillStyle=shiny(g,R,"#c8ffd8","#2fae6a","#0d5a34");
   g.beginPath(); g.arc(0,0,R*0.9,0,7); g.fill();
-  g.save(); g.globalAlpha=.18; g.fillStyle="#7a3800";
-  for(let i=0;i<16;i++){ const a=i/16*7; g.beginPath(); g.arc(Math.cos(a)*R*0.55,Math.sin(a)*R*0.55,R*0.05,0,7); g.fill(); }
+  g.strokeStyle="rgba(13,90,52,.7)"; g.lineWidth=R*0.05;
+  g.beginPath(); g.arc(0,0,R*0.85,0,7); g.stroke();
+  g.beginPath(); g.arc(0,0,R*0.38,0,7); g.stroke();
+  g.save(); g.globalAlpha=.25; g.fillStyle="#0d5a34";
+  g.beginPath(); g.ellipse(-R*0.42,R*0.3,R*0.18,R*0.1,0.5,0,7); g.fill();
+  g.beginPath(); g.ellipse(R*0.46,-R*0.22,R*0.12,R*0.08,-0.4,0,7); g.fill();
   g.restore();
-  glossHighlight(g,R,-R*0.3,-R*0.32,R*0.55);
-  g.fillStyle="#8a4b00"; g.beginPath(); g.arc(0,-R*0.9,R*0.09,0,7); g.fill();
-  g.fillStyle="#3fae2a"; g.beginPath(); g.ellipse(R*0.28,-R*0.9,R*0.26,R*0.12,-0.5,0,7); g.fill();
+  glossHighlight(g,R,-R*0.3,-R*0.34,R*0.4);
+  // cut the centre hole last so it stays clean
+  g.save(); g.globalCompositeOperation="destination-out";
+  g.beginPath(); g.arc(0,0,R*0.31,0,7); g.fill(); g.restore();
 }
-function drawPlum(g,R){
-  // grape cluster
-  const pts=[[0,-R*0.45],[-R*0.34,-R*0.12],[R*0.34,-R*0.12],[-R*0.55,R*0.28],[0,R*0.15],[R*0.55,R*0.28],[-R*0.27,R*0.6],[R*0.27,R*0.6],[0,R*0.78]];
-  g.fillStyle="#3fae2a"; g.beginPath(); g.ellipse(R*0.2,-R*0.7,R*0.28,R*0.13,-0.5,0,7); g.fill();
-  g.lineWidth=Math.max(2,R*0.06); g.strokeStyle="#5a3a12";
-  g.beginPath(); g.moveTo(0,-R*0.55); g.lineTo(0,-R*0.85); g.stroke();
-  for(const [cx,cy] of pts){
-    g.fillStyle=shiny(g,R*0.3,"#b98cff","#7a34d6","#42106f");
-    g.save(); g.translate(cx,cy);
-    g.beginPath(); g.arc(0,0,R*0.27,0,7); g.fill();
-    glossHighlight(g,R*0.27,-R*0.09,-R*0.09,R*0.16);
-    g.restore();
-  }
-}
-function drawBell(g,R){
-  g.fillStyle=shiny(g,R,"#fff2b0","#ffcb2e","#a9760a");
+// 5) Gold ingot (yuanbao)
+function drawIngot(g,R){
+  g.fillStyle=shiny(g,R,"#fff2b8","#e8b53a","#9a6a10");
   g.beginPath();
-  g.moveTo(0,-R*0.8);
-  g.quadraticCurveTo(R*0.72,-R*0.7,R*0.7,R*0.35);
-  g.lineTo(R*0.82,R*0.5); g.lineTo(-R*0.82,R*0.5); g.lineTo(-R*0.7,R*0.35);
-  g.quadraticCurveTo(-R*0.72,-R*0.7,0,-R*0.8);
+  g.moveTo(-R*0.85,R*0.22);
+  g.quadraticCurveTo(-R*0.98,R*0.58,-R*0.5,R*0.58);
+  g.lineTo(R*0.5,R*0.58);
+  g.quadraticCurveTo(R*0.98,R*0.58,R*0.85,R*0.22);
+  g.quadraticCurveTo(R*0.3,R*0.36,0,R*0.32);
+  g.quadraticCurveTo(-R*0.3,R*0.36,-R*0.85,R*0.22);
   g.closePath(); g.fill();
-  g.strokeStyle="#8a5e00"; g.lineWidth=Math.max(2,R*0.05); g.stroke();
-  glossHighlight(g,R,-R*0.22,-R*0.2,R*0.42);
-  // clapper
-  g.fillStyle="#7a4e00"; g.beginPath(); g.arc(0,R*0.66,R*0.14,0,7); g.fill();
-  g.fillStyle="#5a3900"; g.beginPath(); g.arc(0,-R*0.82,R*0.1,0,7); g.fill();
+  g.beginPath();
+  g.moveTo(-R*0.72,R*0.2);
+  g.quadraticCurveTo(-R*0.58,-R*0.5,-R*0.22,-R*0.22);
+  g.quadraticCurveTo(0,-R*0.06,R*0.22,-R*0.22);
+  g.quadraticCurveTo(R*0.58,-R*0.5,R*0.72,R*0.2);
+  g.quadraticCurveTo(R*0.3,R*0.06,0,R*0.1);
+  g.quadraticCurveTo(-R*0.3,R*0.06,-R*0.72,R*0.2);
+  g.closePath(); g.fill();
+  g.strokeStyle="#8a5c00"; g.lineWidth=R*0.03; g.stroke();
+  glossHighlight(g,R,-R*0.22,-R*0.24,R*0.4);
 }
-function drawMelon(g,R){
-  g.fillStyle=shiny(g,R,"#7de08a","#2fae4a","#12662a");
-  g.beginPath(); g.arc(0,0,R*0.9,0,7); g.fill();
-  g.save(); g.strokeStyle="#0e5322"; g.lineWidth=Math.max(3,R*0.09);
-  for(let i=0;i<6;i++){ const a=i/6*Math.PI; g.beginPath();
-    g.ellipse(0,0,R*0.9*Math.abs(Math.cos(a))*0.9+R*0.05,R*0.9,a,Math.PI*0.15,Math.PI*0.85); g.stroke(); }
-  g.restore();
-  glossHighlight(g,R,-R*0.32,-R*0.34,R*0.5);
+// 6) Red packet (hongbao) with gold "8" seal
+function drawEnvelope(g,R){
+  roundRectPath(g,-R*0.6,-R*0.86,R*1.2,R*1.72,R*0.12);
+  g.fillStyle=shiny(g,R,"#ff6b5a","#d81f2a","#7a0a10"); g.fill();
+  g.strokeStyle="#8a0a12"; g.lineWidth=R*0.04; g.stroke();
+  g.fillStyle="rgba(0,0,0,.14)";
+  g.beginPath(); g.moveTo(-R*0.6,-R*0.86); g.lineTo(R*0.6,-R*0.86); g.quadraticCurveTo(0,-R*0.34,-R*0.6,-R*0.86); g.fill();
+  g.fillStyle=shiny(g,R*0.4,"#ffe9a0","#e8b53a","#9a6a10");
+  g.beginPath(); g.arc(0,R*0.02,R*0.3,0,7); g.fill();
+  g.strokeStyle="#8a5c00"; g.lineWidth=R*0.04; g.beginPath(); g.arc(0,R*0.02,R*0.3,0,7); g.stroke();
+  g.fillStyle="#7a0a10"; g.font="900 "+(R*0.42)+"px Arial"; g.textAlign="center"; g.textBaseline="middle";
+  g.fillText("8",0,R*0.04);
+  glossHighlight(g,R*0.5,-R*0.2,-R*0.42,R*0.4);
 }
-function drawBar(g,R){
-  roundRectPath(g,-R*0.92,-R*0.42,R*1.84,R*0.84,R*0.14);
-  g.fillStyle=shiny(g,R,"#fff0c0","#ffc832","#9a6a00"); g.fill();
-  g.strokeStyle="#6e4a00"; g.lineWidth=Math.max(2,R*0.05); g.stroke();
-  g.fillStyle="#5a2b00"; g.font="900 "+(R*0.62)+"px Arial"; g.textAlign="center"; g.textBaseline="middle";
-  g.fillText("BAR",0,R*0.03);
-  glossHighlight(g,R,-R*0.3,-R*0.22,R*0.4);
+// 7) 福 fortune tile
+function drawFu(g,R){
+  roundRectPath(g,-R*0.82,-R*0.82,R*1.64,R*1.64,R*0.18);
+  g.fillStyle=shiny(g,R,"#ff5a4a","#c81f26","#6a0a10"); g.fill();
+  g.strokeStyle="#e8b53a"; g.lineWidth=R*0.1; g.stroke();
+  g.fillStyle="#ffe9a0"; g.font="900 "+(R*1.25)+"px serif"; g.textAlign="center"; g.textBaseline="middle";
+  g.fillText("福",0,R*0.08);
+  glossHighlight(g,R,-R*0.3,-R*0.3,R*0.4);
 }
-function drawSeven(g,R){
-  // red glossy 7 with gold trim
-  g.fillStyle=shiny(g,R,"#ff7a72","#e8342c","#8f110c");
-  g.strokeStyle="#ffd23e"; g.lineWidth=Math.max(4,R*0.12); g.lineJoin="round";
-  g.font="900 "+(R*1.7)+"px Arial"; g.textAlign="center"; g.textBaseline="middle";
-  g.strokeText("7",0,R*0.06); g.fillText("7",0,R*0.06);
-  g.save(); g.globalAlpha=.4; g.fillStyle="#fff";
-  g.font="900 "+(R*1.7)+"px Arial"; g.fillText("7",-R*0.03,R*0.02); g.restore();
+// 8) Lucky 8 — jackpot
+function drawEight(g,R){
+  g.fillStyle=shiny(g,R,"#fff2b8","#f0c040","#9a6a10");
+  g.strokeStyle="#d81f2a"; g.lineWidth=Math.max(4,R*0.14); g.lineJoin="round";
+  g.font="900 "+(R*1.9)+"px Arial"; g.textAlign="center"; g.textBaseline="middle";
+  g.strokeText("8",0,R*0.06); g.fillText("8",0,R*0.06);
+  g.save(); g.globalAlpha=.5; g.fillStyle="#fff";
+  g.beginPath(); g.arc(-R*0.22,-R*0.42,R*0.09,0,7); g.fill();
+  g.beginPath(); g.arc(R*0.3,R*0.34,R*0.05,0,7); g.fill(); g.restore();
 }
 function roundRectPath(g,x,y,w,h,r){
   g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
@@ -770,7 +797,7 @@ function drawBulbs(t){
 let ledFlash=0;
 function flashLed(){ ledFlash=now()+800; }
 function ledTick(t){
-  if(t<ledFlash){ ledEl.style.color=(Math.floor(t/120)%2)?"#ff5a4d":"#57ffb0"; }
+  if(t<ledFlash){ ledEl.style.color=(Math.floor(t/120)%2)?"#ff5a4d":"#ffd257"; }
   else ledEl.style.color="";
 }
 
@@ -807,7 +834,7 @@ document.addEventListener("keydown", e=>{
     const g=c.getContext("2d"); g.translate(22,22); s.draw(g,17);
     const td0=document.createElement("td"); td0.appendChild(c);
     const parts=[]; if(s.pay[4])parts.push("4× = "+s.pay[4]); if(s.pay[3])parts.push("3× = "+s.pay[3]); if(s.pay[2])parts.push("2× = "+s.pay[2]);
-    const td1=document.createElement("td"); td1.textContent=s.id.toUpperCase();
+    const td1=document.createElement("td"); td1.textContent=s.name;
     const td2=document.createElement("td"); td2.textContent=parts.join("   ");
     tr.append(td0,td1,td2); tbl.appendChild(tr);
   });

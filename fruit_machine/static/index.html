@@ -408,8 +408,9 @@ const BETS=[8,16,40,88,168];
 let betIdx=0;
 let credits=500, lastWin=0, state="idle";
 let freeSpins=0, freeActive=false, freeMult=2, freeLineCount=0;
-const JP={ grand:8888.88, major:888.88, minor:88.88, mini:8.88 };
-const JP_SEED={ grand:8888.88, major:888.88, minor:88.88, mini:8.88 };
+const PAY_SCALE=0.205;                              // tunes long-term RTP (~76%)
+const ROW_NORM={4:1, 6:0.072};                      // keeps 6-row RTP ~ 4-row RTP
+const JMULT={ mini:1, minor:4, major:16, grand:80 };// jackpots as multiples of the current wager
 let winCells=new Set(), winFlashUntil=0, coinRainUntil=0;
 let plasmaPath=null, plasmaStart=0;
 let winLines=[];   // winning payline indices during the taiko free spins
@@ -419,8 +420,8 @@ let pendingFree=0, pendingDrum=false;
 let autoPlay=false, autoTimer=null, autoNextAt=0;
 
 /* Cash pot */
-const TEST_FORCE_DRUMS = true;   // TEMP: trigger the taiko drum bonus on most spins for testing
-function randNeed(){ return 45 + Math.floor(Math.random()*11); }   // ~50 coins to fill (45–55)
+const TEST_FORCE_DRUMS = false;
+function randNeed(){ return Math.round((45 + Math.floor(Math.random()*11)) * ROWS/4); }  // ~50 coins (scaled by rows so fill-rate is constant)
 let POT_NEED=randNeed();
 let potCoins=0, potState="open", potLidStart=0, potBump=0;   // open | closing | feature
 let coinCells=[], pendingCollect=0;
@@ -441,10 +442,10 @@ function refresh(){
   $("win").textContent=lastWin.toLocaleString("en-US");
   $("bet").textContent=wager();
   const rb=$("rowsBtn"); if(rb){ rb.textContent=ROWS+" ROWS"; rb.disabled = freeActive || state!=="idle"; }
-  $("amt-grand").textContent=fmt(JP.grand);
-  $("amt-major").textContent=fmt(JP.major);
-  $("amt-minor").textContent=fmt(JP.minor);
-  $("amt-mini").textContent=fmt(JP.mini);
+  $("amt-grand").textContent=fmt(JMULT.grand*wager());
+  $("amt-major").textContent=fmt(JMULT.major*wager());
+  $("amt-minor").textContent=fmt(JMULT.minor*wager());
+  $("amt-mini").textContent=fmt(JMULT.mini*wager());
   $("feat").textContent = freeActive ? ("Free games: "+freeSpins) : "Free games: 0";
   spinBtn.disabled = (state!=="idle") || potState!=="open";
   spinBtn.classList.toggle("free", freeActive);
@@ -570,10 +571,7 @@ function doSpin(){
   setLed(freeActive ? ("FREE GAME · "+freeSpins+" LEFT") : "GOOD FORTUNE…");
   startSpinSound(); refresh();
 }
-function tickJackpots(){
-  const f=betFactor();
-  JP.grand+=0.08*f; JP.major+=0.05*f; JP.minor+=0.03*f; JP.mini+=0.012*f;
-}
+function tickJackpots(){ /* jackpots are fixed multiples of the wager now — nothing to accrue */ }
 function reelHasDrum(i){ for(let r=0;r<ROWS;r++) if(gridAt(i,r)===DRUM) return true; return false; }
 function onReelStopped(i){
   click();
@@ -604,9 +602,9 @@ function evaluate(grid){
     let k=0; while(k<REELS && counts[k]>0) k++;
     if(k>=3 && s.pay[k]){
       let ways=1; for(let i=0;i<k;i++) ways*=counts[i];
-      const w=Math.round(s.pay[k]*ways*betFactor());
-      total+=w; for(let i=0;i<k;i++) cellLists[i].forEach(c=>cells.add(c));
-      parts.push({sym:s, k, ways, w});
+      total += s.pay[k]*ways;   // raw pay-units; scaled once in resolve()
+      for(let i=0;i<k;i++) cellLists[i].forEach(c=>cells.add(c));
+      parts.push({sym:s, k, ways});
     }
   }
   return {total, cells, parts};
@@ -623,7 +621,7 @@ function evaluateLines(grid, nLines){
     let k=0; const lc=[];
     for(let i=0;i<REELS;i++){ const g=grid[i][line[i]];
       if(g===symId || g===WILD){ k++; lc.push(i+","+line[i]); } else break; }
-    if(k>=3 && s.pay[k]){ total+=Math.round(s.pay[k]*betFactor()); lc.forEach(c=>cells.add(c)); lineWins.push(li); }
+    if(k>=3 && s.pay[k]){ total += s.pay[k]; lc.forEach(c=>cells.add(c)); lineWins.push(li); }  // raw units
   }
   return {total, cells, parts:[], lines:lineWins};
 }
@@ -636,9 +634,12 @@ function resolve(){
   }
   const grid=readGrid();
   const lanterns=countSym(grid,LANTERN);
-  const res=(freeActive && freeLineCount>0) ? evaluateLines(grid,freeLineCount) : evaluate(grid);
-  let total=res.total;
-  if(freeActive) total=Math.round(total*freeMult);
+  const linemode=(freeActive && freeLineCount>0);
+  const res = linemode ? evaluateLines(grid,freeLineCount) : evaluate(grid);
+  let mult = PAY_SCALE * betFactor();            // proportional to the wager
+  if(!linemode) mult *= (ROW_NORM[ROWS]||1);     // row-normalise the 243-ways wins
+  if(freeActive) mult *= freeMult;               // ×2 during lantern free games
+  let total = Math.round(res.total * mult);
   winCells=res.cells;
   winLines = res.lines || [];
 
@@ -839,9 +840,8 @@ function startJackpotPick(){
 function tierColor(k){ return {mini:"#d89a5a",minor:"#cfd6e0",major:"#f0c040",grand:"#ff6b52"}[k]; }
 function tierLab(k){ return {mini:"MINI",minor:"MINOR",major:"MAJOR",grand:"GRAND"}[k]; }
 function awardJackpot(k){
-  const amt=Math.round(JP[k]);
+  const amt=Math.round(JMULT[k]*wager());   // jackpot proportional to the wager
   $("jp-"+k).classList.add("win");
-  JP[k]=JP_SEED[k];  // reset pool to its seed
   setLed("★ "+tierLab(k)+" JACKPOT · "+amt.toLocaleString()+"! ★");
   winTune(true); coinRainUntil=now()+2600;
   presentWin(amt, null);   // full jackpot credited atomically, then animated

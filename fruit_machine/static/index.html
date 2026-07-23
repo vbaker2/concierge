@@ -230,8 +230,8 @@
 
       <div class="btnrow">
         <button class="btn" id="coin">＋ COIN</button>
-        <button class="btn ghost" id="paytableBtn">PAYTABLE</button>
         <button class="btn" id="autoBtn">▶ AUTO</button>
+        <button class="btn ghost tiny" id="paytableBtn" title="Paytable">ℹ️</button>
         <button class="btn ghost tiny" id="soundBtn" title="Sound on/off">🔊</button>
       </div>
 
@@ -535,10 +535,15 @@ function tickJackpots(){
   const f=betFactor();
   JP.grand+=0.08*f; JP.major+=0.05*f; JP.minor+=0.03*f; JP.mini+=0.012*f;
 }
+function reelHasDrum(i){ for(let r=0;r<ROWS;r++) if(gridAt(i,r)===DRUM) return true; return false; }
 function onReelStopped(i){
   click();
-  // taiko boom whenever a drum settles into the visible window
-  if(i!=null){ for(let r=0;r<ROWS;r++){ if(gridAt(i,r)===DRUM){ drumHit(); break; } } }
+  // only boom when this drum continues an unbroken run of drums from reel 1 (left→right);
+  // drums that land with a gap before them don't count toward the bonus, so stay silent
+  if(i!=null && reelHasDrum(i)){
+    let chain=true; for(let k=0;k<i;k++){ if(!reelHasDrum(k)){ chain=false; break; } }
+    if(chain) drumHit();
+  }
   stoppedCount++;
   if(stoppedCount>=spinningCount){ stopSpinSound(); state="resolving"; resolve(); }
 }

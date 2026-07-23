@@ -389,6 +389,7 @@ let pendingFree=0, pendingDrum=false;
 let autoPlay=false, autoTimer=null, autoNextAt=0;
 
 /* Cash pot */
+const TEST_FORCE_DRUMS = true;   // TEMP: trigger the taiko drum bonus on most spins for testing
 function randNeed(){ return 45 + Math.floor(Math.random()*11); }   // ~50 coins to fill (45–55)
 let POT_NEED=randNeed();
 let potCoins=0, potState="open", potLidStart=0, potBump=0;   // open | closing | feature
@@ -591,6 +592,10 @@ function evaluateLines(grid, nLines){
 
 /* ---------- Resolve a spin ---------- */
 function resolve(){
+  // TEMP (TEST_FORCE_DRUMS): plant 3 drums on the left reels on ~65% of spins
+  if(TEST_FORCE_DRUMS && !freeActive && Math.random()<0.65){
+    for(let i=0;i<3;i++){ const b=((Math.round(reels[i].pos)%reels[i].strip.length)+reels[i].strip.length)%reels[i].strip.length; reels[i].strip[b]=DRUM; }
+  }
   const grid=readGrid();
   const lanterns=countSym(grid,LANTERN);
   const res=(freeActive && freeLineCount>0) ? evaluateLines(grid,freeLineCount) : evaluate(grid);

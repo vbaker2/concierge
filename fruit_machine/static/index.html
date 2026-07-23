@@ -441,7 +441,7 @@ function winTune(big){ const n=big?[523,659,784,1047,1319,1047,1568,2093]:[523,6
 function gongStrike(when, gain){
   const ac=audio(); if(!ac) return; const t=ac.currentTime+when;
   const master=ac.createGain(); master.gain.value=gain; master.connect(ac.destination);
-  const base=172, ratios=[1,1.48,1.97,2.53,3.16,4.13,5.11,6.4];
+  const base=104, ratios=[1,1.48,1.97,2.53,3.16,4.13,5.11,6.4];
   ratios.forEach((r,i)=>{
     const o=ac.createOscillator(), g=ac.createGain();
     o.type="sine"; o.frequency.setValueAtTime(base*r*(1+Math.random()*0.008), t);
@@ -488,17 +488,22 @@ const HIRAJOSHI=[0,2,3,7,8];   // Japanese pentatonic scale
 const MELODY=[0,2,4,3,7,4,2,3, 4,7,8,7,4,2,0,-9];   // scale degrees (-9 = rest)
 function mfreq(m){ return 440*Math.pow(2,(m-69)/12); }
 function sdeg(deg,oct){ if(deg<=-9) return null; const i=((deg%5)+5)%5, o=Math.floor(deg/5); return 57+(oct+o)*12+HIRAJOSHI[i]; }
-function musicNote(freq,when,dur,vol,type){ if(freq==null) return; tone(freq,dur,type||"triangle",vol,when); }
+function musicNote(midi,when,dur,vol,type){ if(midi==null) return; tone(mfreq(midi),dur,type||"triangle",vol,when); }
 function musicTick(){
   const ac=audio(); if(!ac || musicMode==="off" || !soundOn) return;
-  const step = musicMode==="upbeat" ? 0.19 : 0.34;
-  while(musicNextTime < ac.currentTime + 0.3){
+  const up = musicMode==="upbeat";
+  const step = up ? 0.20 : 0.36;
+  while(musicNextTime < ac.currentTime + 0.35){
     const when=musicNextTime-ac.currentTime, s=musicStep%16;
     const deg=MELODY[musicStep%MELODY.length];
-    // melody: sparse & gentle when calm, denser & brighter when upbeat
-    if(musicMode==="upbeat" || s%2===0) musicNote(sdeg(deg,1), when, musicMode==="upbeat"?0.32:0.7, musicMode==="upbeat"?0.06:0.05, "triangle");
-    if(s%4===0) musicNote(sdeg(0,-1), when, 0.6, 0.045, "sine");                  // bass on the beat
-    if(musicMode==="upbeat" && s%2===1) musicNote(sdeg(4,0), when, 0.16, 0.03, "sine"); // upbeat pulse
+    // koto-style melody pluck (clearly audible)
+    if(deg>-9 && (up || s%2===0)) musicNote(sdeg(deg,1), when, up?0.42:0.9, up?0.13:0.14, "triangle");
+    // warm bass drone on the beat
+    if(s%4===0) musicNote(sdeg(0,-1), when, up?0.5:1.05, 0.11, "sine");
+    // harmony fifth for fullness
+    if(s%4===2) musicNote(sdeg(4,0), when, 0.7, 0.08, "sine");
+    // extra pulse when upbeat
+    if(up && s%2===1) musicNote(sdeg(2,0), when, 0.2, 0.07, "triangle");
     musicNextTime += step; musicStep++;
   }
 }
@@ -1163,6 +1168,11 @@ document.addEventListener("keydown",e=>{ if(e.repeat) return;
   else if(e.key==="ArrowUp"){ $("betup").click(); }
   else if(e.key==="ArrowDown"){ $("betdown").click(); }
   else if(e.key==="c"||e.key==="C"){ $("coin").click(); }
+});
+// browsers need a user gesture to start audio — kick off the music on the first tap
+document.addEventListener("pointerdown", ()=>{
+  if(AC && AC.state==="suspended") AC.resume();
+  if(soundOn && musicMode==="off") startMusic("calm");
 });
 
 /* ---------- Build paytable ---------- */

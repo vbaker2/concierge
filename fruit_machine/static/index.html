@@ -389,7 +389,7 @@ let pendingFree=0, pendingDrum=false;
 let autoPlay=false, autoTimer=null, autoNextAt=0;
 
 /* Cash pot */
-function randNeed(){ return 10 + Math.floor(Math.random()*6); }   // 10–15 coins to fill
+function randNeed(){ return 45 + Math.floor(Math.random()*11); }   // ~50 coins to fill (45–55)
 let POT_NEED=randNeed();
 let potCoins=0, potState="open", potLidStart=0, potBump=0;   // open | closing | feature
 let coinCells=[], pendingCollect=0;

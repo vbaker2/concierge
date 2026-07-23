@@ -430,14 +430,39 @@ const click=()=>tone(200,0.05,"square",0.1);
 const coinSnd=()=>{ tone(880,0.06,"square",0.14); tone(1320,0.09,"square",0.12,0.05); };
 function winTune(big){ const n=big?[523,659,784,1047,1319,1047,1568,2093]:[523,659,784,1047];
   n.forEach((x,i)=>tone(x,0.16,"square",0.15,i*0.1)); }
-// taiko "don" — a low booming hit
+// a single gong strike: inharmonic metallic partials + shimmer + noise transient
+function gongStrike(when, gain){
+  const ac=audio(); if(!ac) return; const t=ac.currentTime+when;
+  const master=ac.createGain(); master.gain.value=gain; master.connect(ac.destination);
+  const base=172, ratios=[1,1.48,1.97,2.53,3.16,4.13,5.11,6.4];
+  ratios.forEach((r,i)=>{
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type="sine"; o.frequency.setValueAtTime(base*r*(1+Math.random()*0.008), t);
+    o.frequency.exponentialRampToValueAtTime(base*r*0.9, t+0.7);   // slight "wow" bend
+    const peak=0.55/(i+1);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(peak,t+0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+1.2+i*0.06);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+1.5);
+  });
+  // shimmering high ring (vibrato)
+  const sh=ac.createOscillator(), shg=ac.createGain(), lfo=ac.createOscillator(), lfog=ac.createGain();
+  sh.type="sine"; sh.frequency.value=base*6.15; lfo.type="sine"; lfo.frequency.value=6.5; lfog.gain.value=45;
+  lfo.connect(lfog); lfog.connect(sh.frequency);
+  shg.gain.setValueAtTime(0,t); shg.gain.linearRampToValueAtTime(0.1,t+0.02); shg.gain.exponentialRampToValueAtTime(0.0001,t+1.1);
+  sh.connect(shg); shg.connect(master); lfo.start(t); sh.start(t); sh.stop(t+1.2); lfo.stop(t+1.2);
+  // metallic crash transient
+  const len=ac.sampleRate*0.14, buf=ac.createBuffer(1,len,ac.sampleRate), d=buf.getChannelData(0);
+  for(let k=0;k<len;k++) d[k]=(Math.random()*2-1)*Math.pow(1-k/len,2);
+  const nb=ac.createBufferSource(); nb.buffer=buf;
+  const bp=ac.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=base*4.2; bp.Q.value=0.8;
+  const ng=ac.createGain(); ng.gain.value=0.28;
+  nb.connect(bp); bp.connect(ng); ng.connect(master); nb.start(t);
+}
+// the taiko/gong reel hit — a dramatic quick DOUBLE strike
 function drumHit(delayMs){
-  if(!soundOn) return; const ac=audio(); if(!ac) return; const when=(delayMs||0)/1000;
-  const t=ac.currentTime+when, o=ac.createOscillator(), g=ac.createGain();
-  o.type="sine"; o.frequency.setValueAtTime(180,t); o.frequency.exponentialRampToValueAtTime(55,t+0.2);
-  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.55,t+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t+0.34);
-  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.36);
-  tone(340,0.05,"triangle",0.12,when);   // stick attack
+  if(!soundOn) return; const ac=audio(); if(!ac) return; const w=(delayMs||0)/1000;
+  gongStrike(w, 0.42);
+  gongStrike(w+0.10, 0.6);   // second hit lands quickly, a touch louder
 }
 // hotel reception desk bell — bright metallic "ding" with inharmonic partials
 function ding(when){
@@ -599,7 +624,7 @@ function continueAfterSpin(){
 /* ---------- Taiko drum choice bonus ---------- */
 function showDrumChoice(){
   state="bonus"; setLed("★ TAIKO BONUS · CHOOSE YOUR FREE SPINS ★");
-  drumHit(); drumHit(120);
+  drumHit();
   $("choiceModal").classList.add("open");
 }
 function chooseFree(spins,lines){

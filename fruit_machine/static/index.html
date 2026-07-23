@@ -89,10 +89,10 @@
   canvas#reels{ display:block; width:100%; height:auto; border-radius:6px; touch-action:none;}
 
   /* Cash pot */
-  .potbar{ display:flex; align-items:center; gap:12px; margin:8px 4px 0; padding:4px 14px 4px 4px;
-    border-radius:14px; background:linear-gradient(180deg,#3a0a0c,#210506); border:2px solid var(--gold-2);
-    box-shadow:inset 0 0 18px rgba(0,0,0,.7), 0 0 14px rgba(255,190,60,.18);}
-  canvas#pot{ height:74px; width:auto; display:block; flex:none; }
+  .potbar{ display:flex; align-items:center; gap:12px; margin:2px 8px 4px; padding:0;
+    background:none; border:none; box-shadow:none;}
+  canvas#pot{ height:76px; width:auto; display:block; flex:none;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.5));}
   .potinfo{ flex:1; text-align:left; min-width:0;}
   .potinfo .t{ font-weight:900; letter-spacing:3px; color:#ffd257; font-size:clamp(13px,3.4vw,16px);
     text-shadow:0 0 8px rgba(255,190,60,.5);}
@@ -195,8 +195,6 @@
 
       <div class="led" id="led">PRESS SPIN &nbsp;•&nbsp; LINE UP THE 8's</div>
 
-      <div class="glass"><canvas id="reels"></canvas></div>
-
       <div class="potbar">
         <canvas id="pot"></canvas>
         <div class="potinfo">
@@ -205,6 +203,8 @@
           <div class="potmeter"><i id="potfill"></i></div>
         </div>
       </div>
+
+      <div class="glass"><canvas id="reels"></canvas></div>
 
       <div class="deck">
         <div class="disp credit"><div class="lbl">CREDITS</div><div class="val" id="credits">0</div></div>
@@ -356,6 +356,7 @@ let freeSpins=0, freeActive=false;
 const JP={ grand:8888.88, major:888.88, minor:88.88, mini:8.88 };
 const JP_SEED={ grand:8888.88, major:888.88, minor:88.88, mini:8.88 };
 let winCells=new Set(), winFlashUntil=0, coinRainUntil=0;
+let plasmaPath=null, plasmaStart=0;
 let spinningCount=0, stoppedCount=0;
 let pendingFree=0;
 
@@ -418,7 +419,7 @@ function doSpin(){
   if(AC && AC.state==="suspended") AC.resume();
 
   if(freeActive){ freeSpins--; } else { credits-=bet(); tickJackpots(); }
-  lastWin=0; winCells.clear(); pendingFree=0;
+  lastWin=0; winCells.clear(); pendingFree=0; plasmaPath=null;
   state="spinning"; spinningCount=REELS; stoppedCount=0;
   const t=now();
   reels.forEach((r,i)=>{ r.phase="cruise"; r.vel=24+Math.random()*7; r.stopAt=t+700+i*230; });
@@ -477,6 +478,7 @@ function resolve(){
 
   if(total>0){
     winFlashUntil=now()+2200;
+    plasmaPath=buildPlasmaPath(); plasmaStart=now();
     lastWin=total;
     const big=total>=200*betFactor();
     if(big) coinRainUntil=now()+2000;
@@ -695,8 +697,64 @@ function render(tn){
     roundRect(ctx,x,TOPPAD,CELLW,winH,8); ctx.lineWidth=2.5; ctx.strokeStyle="rgba(255,207,77,.4)"; ctx.stroke();
   }
 
+  // plasma bolt shooting through the winning cells
+  if(plasmaPath && tn<winFlashUntil) drawPlasma(tn);
+
   // coin rain on big win / jackpot
   if(tn<coinRainUntil) drawCoinRain(tn);
+}
+
+/* ---------- Plasma win bolt ---------- */
+function buildPlasmaPath(){
+  const rowsByReel={}; let maxReel=-1;
+  for(const key of winCells){ const p=key.split(","); const i=+p[0], r=+p[1];
+    (rowsByReel[i]=rowsByReel[i]||[]).push(r); if(i>maxReel) maxReel=i; }
+  if(maxReel<1) return null;
+  const path=[]; let prev=1;
+  for(let i=0;i<=maxReel;i++){
+    const rows=rowsByReel[i]; if(!rows) continue;
+    const row=rows.reduce((a,b)=>Math.abs(b-prev)<Math.abs(a-prev)?b:a);
+    prev=row; path.push({x:reelX(i)+CELLW/2, y:rowCY(row)});
+  }
+  return path.length>=2 ? path : null;
+}
+function boltPoints(path,hp,tn){
+  const segs=[]; let total=0;
+  for(let i=1;i<path.length;i++){ const dx=path[i].x-path[i-1].x, dy=path[i].y-path[i-1].y;
+    const len=Math.hypot(dx,dy)||1; segs.push({a:path[i-1],dx,dy,len}); total+=len; }
+  const targetLen=total*hp, pts=[]; let acc=0;
+  for(const s of segs){
+    const steps=Math.max(3,Math.round(s.len/14)), nx=-s.dy/s.len, ny=s.dx/s.len;
+    for(let k=0;k<=steps;k++){
+      const t=k/steps, at=acc+s.len*t;
+      if(at>targetLen) return pts;
+      const bx=s.a.x+s.dx*t, by=s.a.y+s.dy*t, edge=Math.sin(t*Math.PI);
+      const j=(Math.sin(at*0.35+tn*0.02)+0.5*Math.sin(at*0.9-tn*0.03))*8*edge;
+      pts.push({x:bx+nx*j, y:by+ny*j});
+    }
+    acc+=s.len;
+  }
+  return pts;
+}
+function drawPlasma(tn){
+  const loop=780, p=((tn-plasmaStart)%loop)/loop;
+  const hp=Math.min(1,p/0.55);
+  const fade=p>0.7?Math.max(0,1-(p-0.7)/0.3):1;
+  const pts=boltPoints(plasmaPath,hp,tn);
+  if(pts.length<2) return;
+  const stroke=(w,col,blur)=>{ ctx.shadowBlur=blur; ctx.shadowColor="rgba(120,200,255,.9)";
+    ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y); ctx.stroke(); };
+  ctx.save(); ctx.globalAlpha=fade; ctx.lineCap="round"; ctx.lineJoin="round";
+  stroke(10,"rgba(70,150,255,.5)",24);
+  stroke(5,"rgba(170,225,255,.9)",16);
+  stroke(2,"#ffffff",8);
+  const h=pts[pts.length-1];
+  ctx.shadowColor="#cdeaff"; ctx.shadowBlur=22; ctx.fillStyle="#ffffff";
+  ctx.beginPath(); ctx.arc(h.x,h.y,5.5,0,7); ctx.fill();
+  ctx.globalAlpha=fade*0.7; ctx.fillStyle="rgba(180,230,255,.9)";
+  ctx.beginPath(); ctx.arc(h.x,h.y,10,0,7); ctx.fill();
+  ctx.restore();
 }
 function drawCoinRain(tn){
   const seed=Math.floor(tn/16);

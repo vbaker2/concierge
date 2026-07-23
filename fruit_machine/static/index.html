@@ -386,6 +386,8 @@ const JP={ grand:8888.88, major:888.88, minor:88.88, mini:8.88 };
 const JP_SEED={ grand:8888.88, major:888.88, minor:88.88, mini:8.88 };
 let winCells=new Set(), winFlashUntil=0, coinRainUntil=0;
 let plasmaPath=null, plasmaStart=0;
+let winLines=[];   // winning payline indices during the taiko free spins
+const LINE_COLORS=["#ff5a5a","#ffcf4d","#5affa0","#5ad0ff","#c78aff","#ff9a4d","#8affd0","#ff7ad0"];
 let spinningCount=0, stoppedCount=0;
 let pendingFree=0, pendingDrum=false;
 let autoPlay=false, autoTimer=null, autoNextAt=0;
@@ -532,7 +534,7 @@ function doSpin(){
   if(musicMode==="off") startMusic("calm");
 
   if(freeActive){ freeSpins--; } else { credits-=bet(); tickJackpots(); }
-  lastWin=0; winCells.clear(); pendingFree=0; plasmaPath=null;
+  lastWin=0; winCells.clear(); winLines=[]; pendingFree=0; plasmaPath=null;
   state="spinning"; spinningCount=REELS; stoppedCount=0;
   const t=now();
   reels.forEach((r,i)=>{ r.phase="cruise"; r.vel=24+Math.random()*7; r.stopAt=t+700+i*230; });
@@ -582,7 +584,7 @@ function evaluate(grid){
 }
 // Payline evaluation used only during the taiko free-spins bonus
 function evaluateLines(grid, nLines){
-  let total=0; const cells=new Set();
+  let total=0; const cells=new Set(); const lineWins=[];
   for(let li=0; li<Math.min(nLines,LINES.length); li++){
     const line=LINES[li];
     let symId=-1;
@@ -592,9 +594,9 @@ function evaluateLines(grid, nLines){
     let k=0; const lc=[];
     for(let i=0;i<REELS;i++){ const g=grid[i][line[i]];
       if(g===symId || g===WILD){ k++; lc.push(i+","+line[i]); } else break; }
-    if(k>=3 && s.pay[k]){ total+=Math.round(s.pay[k]*betFactor()); lc.forEach(c=>cells.add(c)); }
+    if(k>=3 && s.pay[k]){ total+=Math.round(s.pay[k]*betFactor()); lc.forEach(c=>cells.add(c)); lineWins.push(li); }
   }
-  return {total, cells, parts:[]};
+  return {total, cells, parts:[], lines:lineWins};
 }
 
 /* ---------- Resolve a spin ---------- */
@@ -609,6 +611,7 @@ function resolve(){
   let total=res.total;
   if(freeActive) total=Math.round(total*freeMult);
   winCells=res.cells;
+  winLines = res.lines || [];
 
   // gather gold-coin cells to fly into the cash pot (only while the pot is open)
   coinCells=[];
@@ -709,7 +712,7 @@ function endSpin(){
     freeActive=false; freeMult=2; freeLineCount=0;
     setLed("FREE GAMES COMPLETE · "+lastWin.toLocaleString()+" WON");
   } else if(freeActive){
-    setLed("FREE GAME READY · "+freeSpins+" LEFT · PRESS SPIN");
+    setLed("FREE SPIN · "+freeSpins+" LEFT"+(freeLineCount>0?(" · "+freeLineCount+" LINES"):"")+" · PRESS SPIN");
   } else if(lastWin>0){
     setLed("WIN "+lastWin.toLocaleString()+" CREDITS!");
   } else {
@@ -882,11 +885,38 @@ function render(tn){
     roundRect(ctx,x,TOPPAD,CELLW,winH,8); ctx.lineWidth=2.5; ctx.strokeStyle="rgba(255,207,77,.4)"; ctx.stroke();
   }
 
+  // active paylines during taiko free spins (so 8 vs 4 lines is visible)
+  if(freeActive && freeLineCount>0) drawPaylines(freeLineCount, tn<winFlashUntil?winLines:[], tn);
+
   // plasma bolt shooting through the winning cells
   if(plasmaPath && tn<winFlashUntil) drawPlasma(tn);
 
   // coin rain on big win / jackpot
   if(tn<coinRainUntil) drawCoinRain(tn);
+}
+
+/* ---------- Payline overlay (taiko free spins) ---------- */
+function drawPaylines(n, wins, tn){
+  ctx.save(); ctx.lineJoin="round"; ctx.lineCap="round";
+  for(let li=0; li<Math.min(n,LINES.length); li++){
+    const line=LINES[li], col=LINE_COLORS[li%LINE_COLORS.length];
+    const win = wins && wins.indexOf(li)>=0;
+    // nudge overlapping straight lines apart a little so they read as separate
+    const off = (li-(n-1)/2)*3;
+    ctx.beginPath();
+    for(let i=0;i<REELS;i++){ const x=reelX(i)+CELLW/2, y=rowCY(line[i])+off;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+    if(win){ ctx.globalAlpha=0.6+0.4*Math.sin(tn/110); ctx.strokeStyle=col; ctx.lineWidth=5;
+      ctx.shadowColor=col; ctx.shadowBlur=14; }
+    else { ctx.globalAlpha=0.28; ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.shadowBlur=0; }
+    ctx.stroke();
+    // little numbered pip at the left end
+    ctx.globalAlpha=win?1:0.5; ctx.shadowBlur=0; ctx.fillStyle=col;
+    const y0=rowCY(line[0])+off; ctx.beginPath(); ctx.arc(reelX(0)-2, y0, win?7:5, 0,7); ctx.fill();
+    ctx.fillStyle="#160203"; ctx.font="900 "+(win?10:8)+"px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(String(li+1), reelX(0)-2, y0);
+  }
+  ctx.restore();
 }
 
 /* ---------- Plasma win bolt ---------- */

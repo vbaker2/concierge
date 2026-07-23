@@ -129,11 +129,15 @@
     box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 2px 0 #a86e00;}
   .betrow button:active{ transform:translateY(1px);}
 
-  .btnrow{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:2px 8px 6px;}
-  .btn{ border:none; border-radius:10px; padding:9px 6px; cursor:pointer; font-weight:800; letter-spacing:1px; font-size:12px; color:#231;
+  .btnrow{ display:flex; gap:8px; padding:2px 8px 6px; align-items:stretch;}
+  .btn{ flex:1; border:none; border-radius:10px; padding:9px 6px; cursor:pointer; font-weight:800; letter-spacing:1px; font-size:12px; color:#231;
     background:linear-gradient(180deg,#ffe38a,#ffb300);
     box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 3px 0 #a86e00,0 5px 10px rgba(0,0,0,.4); transition:transform .05s;}
   .btn.ghost{ background:linear-gradient(180deg,#4a2e2e,#2a1818); color:#f0d0b0; box-shadow:inset 0 1px 1px rgba(255,255,255,.15),0 3px 0 #1a0d0d;}
+  .btn.tiny{ flex:0 0 auto; width:44px; padding:9px 0; font-size:16px; letter-spacing:0;}
+  .btn.on{ background:linear-gradient(180deg,#8fffb0,#12b866); color:#053018;
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 3px 0 #0a6b3c,0 0 14px rgba(70,255,150,.6); animation:autopulse 1s infinite;}
+  @keyframes autopulse{50%{filter:brightness(1.22)}}
   .btn:active{ transform:translateY(2px);}
   .foot{ display:flex; justify-content:space-between; padding:4px 10px 2px; font-size:10.5px; color:#d8b877;}
 
@@ -225,9 +229,10 @@
       </div>
 
       <div class="btnrow">
-        <button class="btn" id="coin">＋ INSERT COIN</button>
+        <button class="btn" id="coin">＋ COIN</button>
         <button class="btn ghost" id="paytableBtn">PAYTABLE</button>
-        <button class="btn ghost" id="soundBtn">🔊 SOUND</button>
+        <button class="btn" id="autoBtn">▶ AUTO</button>
+        <button class="btn ghost tiny" id="soundBtn" title="Sound on/off">🔊</button>
       </div>
 
       <div class="foot">
@@ -381,6 +386,7 @@ let winCells=new Set(), winFlashUntil=0, coinRainUntil=0;
 let plasmaPath=null, plasmaStart=0;
 let spinningCount=0, stoppedCount=0;
 let pendingFree=0, pendingDrum=false;
+let autoPlay=false, autoTimer=null, autoNextAt=0;
 
 /* Cash pot */
 function randNeed(){ return 10 + Math.floor(Math.random()*6); }   // 10–15 coins to fill
@@ -411,6 +417,7 @@ function refresh(){
   spinBtn.firstChild.nodeValue = freeActive ? "FREE" : "SPIN";
   $("spin").querySelector("small").textContent = freeActive ? (freeSpins+" left") : "space";
   $("betup").disabled=$("betdown").disabled = freeActive || state!=="idle";
+  const ab=$("autoBtn"); ab.classList.toggle("on",autoPlay); ab.textContent=autoPlay?"⏸ STOP":"▶ AUTO";
 }
 
 /* ---------- Sound ---------- */
@@ -686,7 +693,32 @@ function endSpin(){
   } else {
     setLed("SPIN AGAIN · GOOD LUCK");
   }
-  state="idle"; refresh();
+  state="idle";
+  if(autoPlay) autoNextAt=now()+750;   // brief pause before the next auto-spin
+  refresh();
+}
+
+/* ---------- Auto play ---------- */
+function toggleAuto(){
+  autoPlay=!autoPlay;
+  if(autoPlay){
+    if(AC && AC.state==="suspended") AC.resume();
+    if(musicMode==="off") startMusic("calm");
+    autoNextAt=0;
+    if(!autoTimer) autoTimer=setInterval(autoTick, 200);
+  } else if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
+  refresh();
+}
+function autoTick(){
+  if(!autoPlay) return;
+  if(state!=="idle") return;                                  // wait out spins/collecting/features
+  if(document.querySelector(".modal.open")) return;           // wait for player-choice bonuses
+  if(!freeActive && credits<bet()){                           // out of credits → stop
+    autoPlay=false; clearInterval(autoTimer); autoTimer=null;
+    setLed("AUTO STOPPED · INSERT COIN"); refresh(); return;
+  }
+  if(now()<autoNextAt) return;
+  doSpin();
 }
 function countSym(grid,sIdx){ let c=0; for(let i=0;i<REELS;i++)for(let r=0;r<ROWS;r++) if(grid[i][r]===sIdx)c++; return c; }
 
@@ -1119,7 +1151,8 @@ $("betdown").onclick=()=>{ if(betIdx>0){betIdx--; tone(500,0.04);} refresh(); };
 $("soundBtn").onclick=()=>{ soundOn=!soundOn;
   if(!soundOn){ stopSpinSound(); stopMusic(); }
   else { startMusic(state==="bonus"?"upbeat":"calm"); tone(660,0.06); }
-  $("soundBtn").textContent=soundOn?"🔊 SOUND":"🔇 MUTED"; };
+  $("soundBtn").textContent=soundOn?"🔊":"🔇"; };
+$("autoBtn").onclick=toggleAuto;
 $("paytableBtn").onclick=()=>$("modal").classList.add("open");
 $("closeModal").onclick=()=>$("modal").classList.remove("open");
 $("modal").onclick=e=>{ if(e.target===$("modal")) $("modal").classList.remove("open"); };

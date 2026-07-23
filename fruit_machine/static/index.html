@@ -91,7 +91,7 @@
   /* Cash pot */
   .potbar{ display:flex; align-items:center; justify-content:center; margin:2px 8px 2px; padding:0;
     background:none; border:none; box-shadow:none;}
-  canvas#pot{ height:92px; width:auto; display:block;
+  canvas#pot{ height:104px; width:auto; display:block;
     filter:drop-shadow(0 3px 6px rgba(0,0,0,.5));}
   .potinfo{ flex:1; text-align:left; min-width:0;}
   .potinfo .t{ font-weight:900; letter-spacing:3px; color:#ffd257; font-size:clamp(13px,3.4vw,16px);
@@ -170,6 +170,14 @@
   .coinbtn.minor{ background:radial-gradient(circle at 40% 34%,#eef2f8,#aab4c4); color:#2a3040;}
   .coinbtn.major{ background:radial-gradient(circle at 40% 34%,#ffe9a0,#e0a828); color:#4a2e00;}
   .coinbtn.grand{ background:radial-gradient(circle at 40% 34%,#ff8a7a,#d81f2a); color:#fff; box-shadow:0 0 16px rgba(255,90,60,.8);}
+  .choicebtns{ display:flex; gap:14px; }
+  .choicecard{ flex:1; display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer;
+    border:2px solid var(--gold-2); border-radius:14px; padding:16px 8px; color:#4a2400; font-weight:800; letter-spacing:1px; font-size:13px;
+    background:linear-gradient(180deg,#ffe38a,#ffb300);
+    box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 4px 0 #a86e00,0 8px 16px rgba(0,0,0,.4); transition:transform .06s;}
+  .choicecard .big{ font-size:38px; font-weight:900; line-height:1; color:#7a0a10;}
+  .choicecard small{ margin-top:6px; font-size:11px; color:#6a3a00; letter-spacing:1px;}
+  .choicecard:active{ transform:translateY(3px); box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 1px 0 #a86e00;}
 
   @media (max-width:420px){ .spin{width:84px;height:84px;font-size:16px;} }
 </style>
@@ -262,6 +270,18 @@
   </div>
 </div>
 
+<!-- Taiko drum free-spins choice -->
+<div class="modal" id="choiceModal">
+  <div class="sheet bonus">
+    <h2>🥁 Taiko Free Spins</h2>
+    <div class="sub">Three drums! Choose your free spins:</div>
+    <div class="choicebtns">
+      <button class="choicecard" id="choiceA"><span class="big">3</span>FREE SPINS<small>8 WIN LINES</small></button>
+      <button class="choicecard" id="choiceB"><span class="big">10</span>FREE SPINS<small>4 WIN LINES</small></button>
+    </div>
+  </div>
+</div>
+
 <script>
 "use strict";
 /* ============================================================
@@ -290,10 +310,17 @@ def("fu",    {name:"福 WILD",   kind:"wild",weight:2, pay:{3:30,4:120,5:500},dr
 // scatters
 def("coin",   {name:"GOLD COIN (Pot)",  kind:"scatter_jack", weight:3, draw:drawCoin});
 def("lantern",{name:"LANTERN (Free)",   kind:"scatter_free", weight:2, draw:drawLantern});
+def("drum",   {name:"TAIKO DRUM",       kind:"scatter_drum", weight:2, draw:drawDrum});
 
 const SYMS = Object.values(SYM);
 const NSYM = SYMS.length;
-const WILD = SYM.fu.idx, COIN = SYM.coin.idx, LANTERN = SYM.lantern.idx;
+const WILD = SYM.fu.idx, COIN = SYM.coin.idx, LANTERN = SYM.lantern.idx, DRUM = SYM.drum.idx;
+
+// paylines used by the taiko free-spins bonus (row index per reel)
+const LINES=[
+  [1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],[0,1,2,1,0],
+  [2,1,0,1,2],[1,0,1,0,1],[1,2,1,2,1],[0,0,1,2,2]
+];
 
 /* ---------- Geometry ---------- */
 const REELS=5, ROWS=3;
@@ -310,7 +337,7 @@ canvas.width=CW*DPR; canvas.height=CH*DPR; canvas.style.aspectRatio=CW+" / "+CH;
 ctx.scale(DPR,DPR);
 
 // Pot canvas
-const POTW=300, POTH=112;
+const POTW=300, POTH=128;
 const potCanvas=document.getElementById("pot"), pctx=potCanvas.getContext("2d");
 potCanvas.width=POTW*DPR; potCanvas.height=POTH*DPR; potCanvas.style.aspectRatio=POTW+" / "+POTH;
 pctx.scale(DPR,DPR);
@@ -347,13 +374,13 @@ function readGrid(){ const g=[]; for(let i=0;i<REELS;i++){ g[i]=[]; for(let r=0;
 const BETS=[8,16,40,88,168];
 let betIdx=0;
 let credits=500, lastWin=0, state="idle";
-let freeSpins=0, freeActive=false;
+let freeSpins=0, freeActive=false, freeMult=2, freeLineCount=0;
 const JP={ grand:8888.88, major:888.88, minor:88.88, mini:8.88 };
 const JP_SEED={ grand:8888.88, major:888.88, minor:88.88, mini:8.88 };
 let winCells=new Set(), winFlashUntil=0, coinRainUntil=0;
 let plasmaPath=null, plasmaStart=0;
 let spinningCount=0, stoppedCount=0;
-let pendingFree=0;
+let pendingFree=0, pendingDrum=false;
 
 /* Cash pot */
 function randNeed(){ return 10 + Math.floor(Math.random()*6); }   // 10–15 coins to fill
@@ -403,6 +430,50 @@ const click=()=>tone(200,0.05,"square",0.1);
 const coinSnd=()=>{ tone(880,0.06,"square",0.14); tone(1320,0.09,"square",0.12,0.05); };
 function winTune(big){ const n=big?[523,659,784,1047,1319,1047,1568,2093]:[523,659,784,1047];
   n.forEach((x,i)=>tone(x,0.16,"square",0.15,i*0.1)); }
+// taiko "don" — a low booming hit
+function drumHit(delayMs){
+  if(!soundOn) return; const ac=audio(); if(!ac) return; const when=(delayMs||0)/1000;
+  const t=ac.currentTime+when, o=ac.createOscillator(), g=ac.createGain();
+  o.type="sine"; o.frequency.setValueAtTime(180,t); o.frequency.exponentialRampToValueAtTime(55,t+0.2);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.55,t+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t+0.34);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.36);
+  tone(340,0.05,"triangle",0.12,when);   // stick attack
+}
+// hotel reception desk bell — bright metallic "ding" with inharmonic partials
+function ding(when){
+  if(!soundOn) return; const ac=audio(); if(!ac) return; const t=ac.currentTime+when, base=2489;
+  [1,2.76,5.4,8.9].forEach((h,i)=>{ const o=ac.createOscillator(), g=ac.createGain();
+    o.type="sine"; o.frequency.value=base*h;
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.22/(i+1),t+0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.9);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.95); });
+}
+function receptionBell(){ for(let i=0;i<4;i++) ding(i*0.26); }   // 4 strokes
+
+/* ---------- Light Japanese background music (WebAudio, no assets) ---------- */
+let musicMode="off", musicTimer=null, musicStep=0, musicNextTime=0;
+const HIRAJOSHI=[0,2,3,7,8];   // Japanese pentatonic scale
+const MELODY=[0,2,4,3,7,4,2,3, 4,7,8,7,4,2,0,-9];   // scale degrees (-9 = rest)
+function mfreq(m){ return 440*Math.pow(2,(m-69)/12); }
+function sdeg(deg,oct){ if(deg<=-9) return null; const i=((deg%5)+5)%5, o=Math.floor(deg/5); return 57+(oct+o)*12+HIRAJOSHI[i]; }
+function musicNote(freq,when,dur,vol,type){ if(freq==null) return; tone(freq,dur,type||"triangle",vol,when); }
+function musicTick(){
+  const ac=audio(); if(!ac || musicMode==="off" || !soundOn) return;
+  const step = musicMode==="upbeat" ? 0.19 : 0.34;
+  while(musicNextTime < ac.currentTime + 0.3){
+    const when=musicNextTime-ac.currentTime, s=musicStep%16;
+    const deg=MELODY[musicStep%MELODY.length];
+    // melody: sparse & gentle when calm, denser & brighter when upbeat
+    if(musicMode==="upbeat" || s%2===0) musicNote(sdeg(deg,1), when, musicMode==="upbeat"?0.32:0.7, musicMode==="upbeat"?0.06:0.05, "triangle");
+    if(s%4===0) musicNote(sdeg(0,-1), when, 0.6, 0.045, "sine");                  // bass on the beat
+    if(musicMode==="upbeat" && s%2===1) musicNote(sdeg(4,0), when, 0.16, 0.03, "sine"); // upbeat pulse
+    musicNextTime += step; musicStep++;
+  }
+}
+function startMusic(mode){ if(!soundOn) return; const ac=audio(); if(!ac) return; if(ac.state==="suspended") ac.resume();
+  musicMode=mode; if(!musicTimer){ musicNextTime=ac.currentTime+0.1; musicTimer=setInterval(musicTick,60); } }
+function setMusicMode(mode){ if(!soundOn){ musicMode=mode; return; } if(!musicTimer) startMusic(mode); else musicMode=mode; }
+function stopMusic(){ musicMode="off"; if(musicTimer){ clearInterval(musicTimer); musicTimer=null; } }
 
 /* ---------- Helpers ---------- */
 function easeOutBack(t){ const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); }
@@ -413,6 +484,7 @@ function doSpin(){
   if(state!=="idle") return;
   if(!freeActive && credits<bet()){ setLed("INSERT COIN TO PLAY"); tone(160,0.2,"sawtooth",0.14); return; }
   if(AC && AC.state==="suspended") AC.resume();
+  if(musicMode==="off") startMusic("calm");
 
   if(freeActive){ freeSpins--; } else { credits-=bet(); tickJackpots(); }
   lastWin=0; winCells.clear(); pendingFree=0; plasmaPath=null;
@@ -426,8 +498,11 @@ function tickJackpots(){
   const f=betFactor();
   JP.grand+=0.08*f; JP.major+=0.05*f; JP.minor+=0.03*f; JP.mini+=0.012*f;
 }
-function onReelStopped(){
-  click(); stoppedCount++;
+function onReelStopped(i){
+  click();
+  // taiko boom whenever a drum settles into the visible window
+  if(i!=null){ for(let r=0;r<ROWS;r++){ if(gridAt(i,r)===DRUM){ drumHit(); break; } } }
+  stoppedCount++;
   if(stoppedCount>=spinningCount){ stopSpinSound(); state="resolving"; resolve(); }
 }
 
@@ -435,7 +510,7 @@ function onReelStopped(){
 function evaluate(grid){
   let total=0; const cells=new Set(); const parts=[];
   for(const s of SYMS){
-    if(s.kind==="scatter_jack"||s.kind==="scatter_free") continue;
+    if(s.kind==="scatter_jack"||s.kind==="scatter_free"||s.kind==="scatter_drum") continue;
     const counts=[], cellLists=[];
     for(let i=0;i<REELS;i++){
       let c=0; const list=[];
@@ -455,14 +530,30 @@ function evaluate(grid){
   }
   return {total, cells, parts};
 }
+// Payline evaluation used only during the taiko free-spins bonus
+function evaluateLines(grid, nLines){
+  let total=0; const cells=new Set();
+  for(let li=0; li<Math.min(nLines,LINES.length); li++){
+    const line=LINES[li];
+    let symId=-1;
+    for(let i=0;i<REELS;i++){ const g=grid[i][line[i]]; if(g!==WILD){ symId=g; break; } }
+    if(symId<0) symId=WILD;
+    const s=SYMS[symId]; if(!s.pay) continue;   // scatters never pay a line
+    let k=0; const lc=[];
+    for(let i=0;i<REELS;i++){ const g=grid[i][line[i]];
+      if(g===symId || g===WILD){ k++; lc.push(i+","+line[i]); } else break; }
+    if(k>=3 && s.pay[k]){ total+=Math.round(s.pay[k]*betFactor()); lc.forEach(c=>cells.add(c)); }
+  }
+  return {total, cells, parts:[]};
+}
 
 /* ---------- Resolve a spin ---------- */
 function resolve(){
   const grid=readGrid();
   const lanterns=countSym(grid,LANTERN);
-  const res=evaluate(grid);
+  const res=(freeActive && freeLineCount>0) ? evaluateLines(grid,freeLineCount) : evaluate(grid);
   let total=res.total;
-  if(freeActive) total*=2;
+  if(freeActive) total=Math.round(total*freeMult);
   winCells=res.cells;
 
   // gather gold-coin cells to fly into the cash pot (only while the pot is open)
@@ -471,6 +562,11 @@ function resolve(){
     for(let i=0;i<REELS;i++) for(let r=0;r<ROWS;r++) if(grid[i][r]===COIN) coinCells.push([i,r]);
   }
   pendingFree = lanterns>=3 ? 8 : 0;
+
+  // taiko drums on consecutive reels from the left (no gap) → choice bonus
+  let drumReels=0;
+  for(let i=0;i<REELS;i++){ let has=false; for(let r=0;r<ROWS;r++) if(grid[i][r]===DRUM){has=true;break;} if(has) drumReels++; else break; }
+  pendingDrum = (!freeActive && drumReels>=3);
 
   if(total>0){
     winFlashUntil=now()+2200;
@@ -493,8 +589,25 @@ function afterWin(){
   }
 }
 // continue the spin once coins are collected and the pot did NOT trigger
-function postCollect(){
-  if(pendingFree) grantFreeGames(pendingFree); else endSpin();
+function postCollect(){ continueAfterSpin(); }
+function continueAfterSpin(){
+  if(pendingDrum){ pendingDrum=false; showDrumChoice(); }
+  else if(pendingFree){ const n=pendingFree; pendingFree=0; grantFreeGames(n); }
+  else endSpin();
+}
+
+/* ---------- Taiko drum choice bonus ---------- */
+function showDrumChoice(){
+  state="bonus"; setLed("★ TAIKO BONUS · CHOOSE YOUR FREE SPINS ★");
+  drumHit(); drumHit(120);
+  $("choiceModal").classList.add("open");
+}
+function chooseFree(spins,lines){
+  $("choiceModal").classList.remove("open");
+  freeActive=true; freeSpins=spins; freeMult=1; freeLineCount=lines;
+  drumHit();
+  setLed("★ "+spins+" FREE SPINS · "+lines+" WIN LINES ★");
+  endSpin();
 }
 
 /* ---------- Cash-pot coin flight ---------- */
@@ -524,22 +637,22 @@ function onCoinLanded(){
 function startPotClose(){
   potState="closing"; potLidStart=now(); flyers.length=0; pendingCollect=0;
   setLed("★ CASH POT FULL — LID CLOSING! ★");
-  tone(300,0.2,"sawtooth",0.16); tone(160,0.3,"sawtooth",0.14,0.12);
-  setTimeout(()=>{ potState="feature"; startJackpotPick(); }, 800);
+  receptionBell();   // 4 strokes of a reception desk bell
+  setTimeout(()=>{ potState="feature"; startJackpotPick(); }, 1250);
   refresh();
 }
 function potReset(){ potCoins=0; potState="open"; POT_NEED=randNeed(); updatePotMeter(); }
 function updatePotMeter(){ /* the pot image itself shows the fill; no text/meter */ }
 function grantFreeGames(n){
   const retrig=freeActive;
-  freeActive=true; freeSpins+=n;
+  freeActive=true; freeSpins+=n; freeMult=2; freeLineCount=0;
   setLed(retrig ? ("+"+n+" FREE GAMES!") : ("★ "+n+" FREE GAMES · WINS ×2 ★"));
   tone(660,0.1,"square",0.16); tone(990,0.14,"square",0.14,0.1);
   setTimeout(endSpin, 900);
 }
 function endSpin(){
   if(freeActive && freeSpins<=0){
-    freeActive=false;
+    freeActive=false; freeMult=2; freeLineCount=0;
     setLed("FREE GAMES COMPLETE · "+lastWin.toLocaleString()+" WON");
   } else if(freeActive){
     setLed("FREE GAME READY · "+freeSpins+" LEFT · PRESS SPIN");
@@ -576,7 +689,7 @@ const TIERS=[
   {key:"grand", lab:"GRAND"},
 ];
 function startJackpotPick(){
-  state="bonus";
+  state="bonus"; setMusicMode("upbeat");
   // 12 coins, weighted; guarantee at least 3 of some tier
   const weights={mini:6,minor:4,major:2,grand:1};
   let tiers=[];
@@ -622,8 +735,8 @@ function awardJackpot(k){
   setTimeout(()=>{
     $("bonusModal").classList.remove("open");
     $("jp-"+k).classList.remove("win");
-    potReset();
-    if(pendingFree) grantFreeGames(pendingFree); else endSpin();
+    setMusicMode("calm"); potReset();
+    continueAfterSpin();
   }, 2200);
 }
 
@@ -631,13 +744,13 @@ function awardJackpot(k){
 let last=now();
 function frame(t){
   const dt=Math.min((t-last)/1000,0.05); last=t; const tn=now();
-  for(const r of reels){
+  for(let ri=0; ri<reels.length; ri++){ const r=reels[ri];
     if(r.phase==="cruise"){
       r.pos+=r.vel*dt;
       if(tn>=r.stopAt){ r.phase="decel"; r.decFrom=r.pos; r.decTo=Math.ceil(r.pos)+2; r.decStart=tn; r.decDur=520; }
     } else if(r.phase==="decel"){
       const p=(tn-r.decStart)/r.decDur;
-      if(p>=1){ r.pos=((r.decTo%r.strip.length)+r.strip.length)%r.strip.length; r.phase="stopped"; onReelStopped(); }
+      if(p>=1){ r.pos=((r.decTo%r.strip.length)+r.strip.length)%r.strip.length; r.phase="stopped"; onReelStopped(ri); }
       else r.pos=r.decFrom+(r.decTo-r.decFrom)*easeOutBack(p);
     }
   }
@@ -730,9 +843,10 @@ function boltPoints(path,hp,tn){
   return pts;
 }
 function drawPlasma(tn){
-  const loop=390, p=((tn-plasmaStart)%loop)/loop;
-  const hp=Math.min(1,p/0.55);
-  const fade=p>0.7?Math.max(0,1-(p-0.7)/0.3):1;
+  const SHOOT=240, HOLD=160, el=tn-plasmaStart;   // single fast bolt, fires once
+  if(el>SHOOT+HOLD) return;
+  const hp=Math.min(1, el/SHOOT);
+  const fade=el>SHOOT ? Math.max(0,1-(el-SHOOT)/HOLD) : 1;
   const pts=boltPoints(plasmaPath,hp,tn);
   if(pts.length<2) return;
   const stroke=(w,col,blur)=>{ ctx.shadowBlur=blur; ctx.shadowColor="rgba(120,200,255,.9)";
@@ -849,13 +963,29 @@ function drawEight(g,R){
   g.strokeText("88",0,R*0.06); g.fillText("88",0,R*0.06);
   g.save(); g.globalAlpha=.5; g.fillStyle="#fff"; g.beginPath(); g.arc(-R*0.4,-R*0.34,R*0.08,0,7); g.fill(); g.restore();
 }
+// taiko drum with two crossed drumsticks
+function drawDrum(g,R){
+  const cx=0, cy=R*0.06, rr=R*0.78;
+  g.fillStyle=shiny(g,R,"#ff5a4a","#c81f26","#6a0a10");
+  g.beginPath(); g.ellipse(cx,cy,rr*1.02,rr*0.92,0,0,7); g.fill();
+  g.strokeStyle="#e8b53a"; g.lineWidth=R*0.13; g.beginPath(); g.ellipse(cx,cy,rr*0.99,rr*0.9,0,0,7); g.stroke();
+  g.fillStyle=shiny(g,rr,"#fff2d6","#e6cfa2","#b8945e");
+  g.beginPath(); g.arc(cx,cy-R*0.02,rr*0.74,0,7); g.fill();
+  g.strokeStyle="#8a5c00"; g.lineWidth=R*0.05; g.beginPath(); g.arc(cx,cy-R*0.02,rr*0.74,0,7); g.stroke();
+  g.fillStyle="#7a5200"; for(let k=0;k<12;k++){ const a=k/12*7; g.beginPath(); g.arc(cx+Math.cos(a)*rr*0.74, cy-R*0.02+Math.sin(a)*rr*0.74, R*0.045,0,7); g.fill(); }
+  g.strokeStyle="#caa06a"; g.lineWidth=R*0.14; g.lineCap="round";
+  g.beginPath(); g.moveTo(-R*0.78,R*0.82); g.lineTo(R*0.55,-R*0.6); g.stroke();
+  g.beginPath(); g.moveTo(R*0.78,R*0.82); g.lineTo(-R*0.55,-R*0.6); g.stroke();
+  g.fillStyle="#e6c290"; g.beginPath(); g.arc(R*0.55,-R*0.6,R*0.11,0,7); g.fill();
+  g.beginPath(); g.arc(-R*0.55,-R*0.6,R*0.11,0,7); g.fill();
+}
 
 /* ---------- Cash pot rendering ---------- */
 function goldGrad(g,x,y){ const gr=g.createLinearGradient(x,y-15,x,y+15);
   gr.addColorStop(0,"#ffe9a0"); gr.addColorStop(.5,"#e0a828"); gr.addColorStop(1,"#8a5c00"); return gr; }
 function drawPot(tn){
   pctx.clearRect(0,0,POTW,POTH);
-  const cx=POTW/2, openY=52, botY=106, topR=50, botR=38;
+  const cx=POTW/2, openY=64, botY=120, topR=120, botR=94;
   // rattle harder the closer the pot is to bursting
   let sx=0, sy=0;
   const left = POT_NEED - potCoins;
@@ -888,7 +1018,7 @@ function drawPot(tn){
     const gg=pctx.createLinearGradient(0,fy,0,botY); gg.addColorStop(0,"#ffe27a"); gg.addColorStop(1,"#b8830f");
     pctx.fillStyle=gg; pctx.fillRect(cx-topR,fy,topR*2,botY-fy);
     pctx.fillStyle="#fff2b8";
-    for(let c=0;c<7;c++){ const xx=cx-topR+9+c*15; pctx.beginPath(); pctx.arc(xx,fy+3+((c%2)?2:0),3.4,0,7); pctx.fill(); }
+    for(let c=0;c<13;c++){ const xx=cx-topR+14+c*18; pctx.beginPath(); pctx.arc(xx,fy+3+((c%2)?2:0),4,0,7); pctx.fill(); }
     pctx.restore();
   }
   // handles
@@ -909,12 +1039,12 @@ function drawPot(tn){
 }
 function drawLid(cx,openY,topR,a){
   const g=pctx; g.save();
-  g.translate(cx + a*topR*0.55, openY - 5 - a*32); g.rotate(-a*0.5);
+  g.translate(cx + a*topR*0.22, openY - 5 - a*30); g.rotate(-a*0.42);
   g.fillStyle=goldGrad(g,0,0);
-  g.beginPath(); g.moveTo(-topR*0.98,0); g.quadraticCurveTo(0,-36,topR*0.98,0); g.closePath(); g.fill();
-  g.beginPath(); g.ellipse(0,0,topR*0.98,10,0,0,7); g.fill();
+  g.beginPath(); g.moveTo(-topR*0.95,0); g.quadraticCurveTo(0,-42,topR*0.95,0); g.closePath(); g.fill();
+  g.beginPath(); g.ellipse(0,0,topR*0.95,11,0,0,7); g.fill();
   g.strokeStyle="#8a5c00"; g.lineWidth=2; g.stroke();
-  g.fillStyle="#ffe9a0"; g.beginPath(); g.arc(0,-31,6.5,0,7); g.fill();
+  g.fillStyle="#ffe9a0"; g.beginPath(); g.arc(0,-35,7,0,7); g.fill();
   g.restore();
 }
 function drawFlyCoin(g,x,y,r,rot){
@@ -957,13 +1087,19 @@ function master(t){ drawBulbs(t); drawPot(t); drawFx(t); requestAnimationFrame(m
 requestAnimationFrame(frame); requestAnimationFrame(master);
 
 spinBtn.onclick=doSpin;
-$("coin").onclick=()=>{ credits+=100; coinSnd(); if(state==="idle") setLed("+100 CREDITS · PRESS SPIN"); refresh(); };
+$("coin").onclick=()=>{ if(AC&&AC.state==="suspended")AC.resume(); if(musicMode==="off")startMusic("calm");
+  credits+=100; coinSnd(); if(state==="idle") setLed("+100 CREDITS · PRESS SPIN"); refresh(); };
 $("betup").onclick=()=>{ if(betIdx<BETS.length-1){betIdx++; tone(700,0.04);} refresh(); };
 $("betdown").onclick=()=>{ if(betIdx>0){betIdx--; tone(500,0.04);} refresh(); };
-$("soundBtn").onclick=()=>{ soundOn=!soundOn; if(!soundOn) stopSpinSound(); $("soundBtn").textContent=soundOn?"🔊 SOUND":"🔇 MUTED"; if(soundOn) tone(660,0.06); };
+$("soundBtn").onclick=()=>{ soundOn=!soundOn;
+  if(!soundOn){ stopSpinSound(); stopMusic(); }
+  else { startMusic(state==="bonus"?"upbeat":"calm"); tone(660,0.06); }
+  $("soundBtn").textContent=soundOn?"🔊 SOUND":"🔇 MUTED"; };
 $("paytableBtn").onclick=()=>$("modal").classList.add("open");
 $("closeModal").onclick=()=>$("modal").classList.remove("open");
 $("modal").onclick=e=>{ if(e.target===$("modal")) $("modal").classList.remove("open"); };
+$("choiceA").onclick=()=>chooseFree(3,8);
+$("choiceB").onclick=()=>chooseFree(10,4);
 document.addEventListener("keydown",e=>{ if(e.repeat) return;
   if(e.code==="Space"){ e.preventDefault(); doSpin(); }
   else if(e.key==="ArrowUp"){ $("betup").click(); }
@@ -982,7 +1118,9 @@ document.addEventListener("keydown",e=>{ if(e.repeat) return;
     const td1=document.createElement("td"); td1.textContent=s.name;
     const td2=document.createElement("td");
     if(s.pay){ const p=[]; if(s.pay[5])p.push("5→"+s.pay[5]); if(s.pay[4])p.push("4→"+s.pay[4]); if(s.pay[3])p.push("3→"+s.pay[3]); td2.textContent=p.join("  "); }
-    else td2.textContent = s.kind==="scatter_jack" ? "3+ Jackpot Pick" : "3+ Free Games";
+    else if(s.kind==="scatter_jack") td2.textContent="Fills the Cash Pot";
+    else if(s.kind==="scatter_drum") td2.textContent="3+ from left → Taiko Bonus";
+    else td2.textContent="3+ Free Games";
     tr.append(td0,td1,td2); tbl.appendChild(tr);
   });
 })();

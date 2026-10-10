@@ -263,8 +263,10 @@
       <br><br>
       <b>福 FU</b> is <b>WILD</b> — it fills in for any symbol except the scatters.<br>
       <b>GOLD COIN</b> — every coin that lands flies into the <b style="color:#ffd257">Cash Pot</b>.
-      Fill the pot (about 50 coins) and the lid slams shut to launch the <b style="color:#ffd257">Jackpot Pick</b>:
-      tap coins, match 3 of a tier and win that jackpot (MINI · MINOR · MAJOR · GRAND).<br>
+      Fill the pot and the lid slams shut to launch the <b style="color:#ffd257">Jackpot Pick</b>:
+      tap coins, match 3 of a tier and win that jackpot (MINI · MINOR · MAJOR · GRAND).
+      Jackpots are <b>fixed</b> at every bet — bigger bets fill the pot faster
+      (about 50 coins at a bet of 88; a bet of 8 needs about 11× as many).<br>
       <b>LANTERN</b> — land <b>3+</b> anywhere for <b style="color:#7dffb0">8 Free Games</b> with all
       wins <b>doubled</b> (re-triggerable).
     </div>
@@ -438,7 +440,12 @@ let credits=500, lastWin=0, state="idle";
 let freeSpins=0, freeActive=false, freeMult=2, freeLineCount=0;
 const PAY_SCALE=0.455;                              // tunes long-term RTP (~76%, 4 reels)
 const ROW_NORM={4:1, 6:0.153};                      // keeps 6-row RTP ~ 4-row RTP
-const JMULT={ mini:1, minor:4, major:16, grand:80 };// jackpots as multiples of the current wager
+const JMULT={ mini:1, minor:4, major:16, grand:80 };// jackpot tiers relative to JP_REF
+const JP_REF=88;                                    // reference wager: jackpots are fixed at JMULT×88
+const JP_FIXED={}; for(const k in JMULT) JP_FIXED[k]=JMULT[k]*JP_REF;
+// Fixed jackpots, so to keep RTP constant the pot fills in proportion to the wager:
+// at a wager of 88 each coin is one full coin; at 8 it's 8/88 of one, so the pot fills ~11× slower.
+const potFill=()=>wager()/JP_REF;
 let winCells=new Set(), winFlashUntil=0, coinRainUntil=0;
 let plasmaPath=null, plasmaStart=0;
 let winLines=[];   // winning payline indices during the taiko free spins
@@ -470,10 +477,10 @@ function refresh(){
   $("win").textContent=lastWin.toLocaleString("en-US");
   $("bet").textContent=wager();
   const rb=$("rowsBtn"); if(rb){ rb.textContent=ROWS+" ROWS"; rb.disabled = freeActive || state!=="idle"; }
-  $("amt-grand").textContent=fmt(JMULT.grand*wager());
-  $("amt-major").textContent=fmt(JMULT.major*wager());
-  $("amt-minor").textContent=fmt(JMULT.minor*wager());
-  $("amt-mini").textContent=fmt(JMULT.mini*wager());
+  $("amt-grand").textContent=fmt(JP_FIXED.grand);
+  $("amt-major").textContent=fmt(JP_FIXED.major);
+  $("amt-minor").textContent=fmt(JP_FIXED.minor);
+  $("amt-mini").textContent=fmt(JP_FIXED.mini);
   $("feat").textContent = freeActive ? ("Free games: "+freeSpins) : "Free games: 0";
   spinBtn.disabled = (state!=="idle") || potState!=="open";
   spinBtn.classList.toggle("free", freeActive);
@@ -806,7 +813,7 @@ function onCoinLanded(){
   potBump=now()+240;
   if(potState==="open"){
     const before=potCoins/POT_NEED;
-    potCoins=Math.min(POT_NEED,potCoins+1); updatePotMeter(); coinSnd();
+    potCoins=Math.min(POT_NEED,potCoins+potFill()); updatePotMeter(); coinSnd();
     const after=potCoins/POT_NEED;
     // milestone fill sounds as the pot crosses 25 / 50 / 75 %
     if(before<0.25&&after>=0.25) playSnd("pot25",0.8,pitch());
@@ -940,7 +947,7 @@ function startJackpotPick(){
 function tierColor(k){ return {mini:"#d89a5a",minor:"#cfd6e0",major:"#f0c040",grand:"#ff6b52"}[k]; }
 function tierLab(k){ return {mini:"MINI",minor:"MINOR",major:"MAJOR",grand:"GRAND"}[k]; }
 function awardJackpot(k){
-  const amt=Math.round(JMULT[k]*wager());   // jackpot proportional to the wager
+  const amt=JP_FIXED[k];   // fixed jackpot, whatever the bet
   $("jp-"+k).classList.add("win");
   setLed("★ "+tierLab(k)+" JACKPOT · "+amt.toLocaleString()+"! ★");
   // real coin cascade: grand = 15s shower, major = 12s feature fall, minor/mini = 8s burst
@@ -1356,8 +1363,10 @@ document.addEventListener("pointerdown", ()=>{
   const tbl=$("ptable");
   SYMS.slice().reverse().forEach(s=>{
     const tr=document.createElement("tr");
-    const c=document.createElement("canvas"); c.width=40; c.height=40;
-    const g=c.getContext("2d"); g.translate(20,20); s.draw(g,15,s);
+    let c;
+    if(ART[s.id]){ c=new Image(); c.src=ART[s.id]; c.width=40; c.height=40; c.alt=s.name; }   // same AI art as the reels
+    else { c=document.createElement("canvas"); c.width=40; c.height=40;
+      const g=c.getContext("2d"); g.translate(20,20); s.draw(g,15,s); }
     const td0=document.createElement("td"); td0.appendChild(c);
     const td1=document.createElement("td"); td1.textContent=s.name;
     const td2=document.createElement("td");

@@ -516,6 +516,10 @@ const pitch=()=>0.98+Math.random()*0.04;   // ±2% random pitch for realism
 let featureMusicSrc=null;
 function startFeatureMusic(){ if(featureMusicSrc) return; featureMusicSrc=playSnd("feature_music",0.5,1,true); }
 function stopFeatureMusic(){ stopSnd(featureMusicSrc); featureMusicSrc=null; }
+// Decode every sample at page load (context starts suspended; it resumes on the first
+// tap) so the recorded sounds are ready from the very first spin — no synth fallback gap.
+try{ audio(); }catch(e){}
+window.addEventListener("pointerdown", function once(){ try{ if(AC&&AC.state==="suspended") AC.resume(); }catch(e){} window.removeEventListener("pointerdown",once); }, {once:true});
 function tone(f,d,type="square",v=.16,when=0){
   if(!soundOn) return; const ac=audio(); if(!ac) return; const t=ac.currentTime+when;
   const o=ac.createOscillator(),g=ac.createGain(); o.type=type; o.frequency.setValueAtTime(f,t);

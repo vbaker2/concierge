@@ -382,10 +382,17 @@ function setRows(n){
 /* ---------- Pre-render sprites ---------- */
 const SS=2;
 const sprites=SYMS.map(s=>{
-  const c=document.createElement("canvas"); c.width=CELLW*SS; c.height=CELLH*SS;
-  const g=c.getContext("2d"); g.scale(SS,SS); g.translate(CELLW/2,CELLH/2);
   const R=Math.min(CELLW,CELLH)*0.5-7;
-  s.draw(g,R,s);
+  // draw the symbol once on a temp layer
+  const tmp=document.createElement("canvas"); tmp.width=CELLW*SS; tmp.height=CELLH*SS;
+  const tg=tmp.getContext("2d"); tg.scale(SS,SS); tg.translate(CELLW/2,CELLH/2);
+  s.draw(tg,R,s);
+  // composite: a soft drop shadow (for depth) with the crisp symbol on top
+  const c=document.createElement("canvas"); c.width=CELLW*SS; c.height=CELLH*SS;
+  const g=c.getContext("2d");
+  g.save(); g.shadowColor="rgba(0,0,0,.5)"; g.shadowBlur=9*SS; g.shadowOffsetY=5*SS;
+  g.drawImage(tmp,0,0); g.restore();
+  g.drawImage(tmp,0,0);
   return c;
 });
 
@@ -916,6 +923,11 @@ function render(tn){
     roundRect(ctx,x,TOPPAD,CELLW,winH,8); ctx.lineWidth=2.5; ctx.strokeStyle="rgba(255,207,77,.4)"; ctx.stroke();
   }
 
+  // glass sheen — a soft diagonal highlight across the whole reel window
+  const sheen=ctx.createLinearGradient(0,0,CW*0.7,CH);
+  sheen.addColorStop(0,"rgba(255,255,255,.07)"); sheen.addColorStop(.22,"rgba(255,255,255,.015)"); sheen.addColorStop(.5,"rgba(255,255,255,0)");
+  ctx.fillStyle=sheen; ctx.fillRect(0,0,CW,CH);
+
   // active paylines during taiko free spins (so 8 vs 4 lines is visible)
   if(freeActive && freeLineCount>0) drawPaylines(freeLineCount, tn<winFlashUntil?winLines:[], tn);
 
@@ -1030,6 +1042,14 @@ function gloss(g,R,cx,cy,rr){ g.save(); g.globalAlpha=.5; const h=g.createRadial
 function roundRectPath(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
 
 function royal(g,R,s){
+  // gem backing — a soft coloured disc with a gilded rim so the royals read as jewels
+  g.save();
+  const back=g.createRadialGradient(0,-R*0.25,R*0.1,0,0,R*1.0);
+  back.addColorStop(0,"rgba(255,255,255,.28)"); back.addColorStop(.45,hexA(s.color,.30));
+  back.addColorStop(.9,hexA(shade(s.color),.22)); back.addColorStop(1,"rgba(0,0,0,0)");
+  g.fillStyle=back; g.beginPath(); g.arc(0,0,R*0.98,0,7); g.fill();
+  g.lineWidth=R*0.05; g.strokeStyle="rgba(255,225,150,.5)"; g.beginPath(); g.arc(0,0,R*0.9,0,7); g.stroke();
+  g.restore();
   // ornate gilded letter with colour
   const t=s.txt, fs = t.length>1 ? R*1.15 : R*1.55;
   g.font="900 "+fs+"px Georgia,'Times New Roman',serif"; g.textAlign="center"; g.textBaseline="middle";
@@ -1039,8 +1059,9 @@ function royal(g,R,s){
   const grad=g.createLinearGradient(0,-R,0,R);
   grad.addColorStop(0,"#ffffff"); grad.addColorStop(.35,s.color); grad.addColorStop(1,shade(s.color));
   g.fillStyle=grad; g.fillText(t,0,R*0.06);
-  g.save(); g.globalAlpha=.35; g.fillStyle="#fff"; g.font="900 "+fs+"px Georgia,serif"; g.fillText(t,-R*0.02,R*0.0); g.restore();
+  g.save(); g.globalAlpha=.4; g.fillStyle="#fff"; g.font="900 "+fs+"px Georgia,serif"; g.fillText(t,-R*0.02,-R*0.02); g.restore();
 }
+function hexA(hex,a){ if(hex[0]!=="#") return hex; const n=parseInt(hex.slice(1),16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; }
 function shade(hex){ const n=parseInt(hex.slice(1),16); const r=(n>>16)*0.5|0,gg=((n>>8)&255)*0.5|0,b=(n&255)*0.5|0; return `rgb(${r},${gg},${b})`; }
 
 function drawCoin(g,R){

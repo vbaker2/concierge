@@ -490,13 +490,25 @@ function audio(){ if(!AC){ try{AC=new(window.AudioContext||window.webkitAudioCon
 /* ---------- Recorded sample engine (ChatGPT sound pack, embedded as data URIs) ---------- */
 const SND = window.__SND || {};      // key -> data:audio/mpeg base64
 const sndBuf = {};                   // key -> decoded AudioBuffer (null while loading)
+// Decode a base64 data: URI straight to an ArrayBuffer in JS.
+// IMPORTANT: we must NOT use fetch() here — in the sandboxed artifact iframe the
+// Content-Security-Policy blocks fetch() of data: URIs, so the samples would never
+// load and every sound would fall back to the synth. atob() has no such restriction.
+function dataUriToBuffer(uri){
+  const b64 = uri.slice(uri.indexOf(",")+1);
+  const bin = atob(b64), n=bin.length, bytes=new Uint8Array(n);
+  for(let i=0;i<n;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes.buffer;
+}
 function loadSnd(){
   const ac=AC; if(!ac) return;
   Object.keys(SND).forEach(k=>{
     if(k in sndBuf) return; sndBuf[k]=null;
-    fetch(SND[k]).then(r=>r.arrayBuffer())
-      .then(b=>ac.decodeAudioData(b))
-      .then(buf=>{ sndBuf[k]=buf; }).catch(()=>{});
+    try{
+      const ab=dataUriToBuffer(SND[k]);
+      // callback form of decodeAudioData for the widest browser support
+      ac.decodeAudioData(ab, buf=>{ sndBuf[k]=buf; }, ()=>{});
+    }catch(e){}
   });
 }
 // play a one-shot (or loop) sample; returns the source so loops can be stopped

@@ -1367,7 +1367,14 @@ const DEFAULT_PADMAP={0:"select",1:"b2",2:"b3",3:"select",9:"select",8:"coin",
   12:"up",13:"down",14:"left",15:"right"};   // standard-mapping d-pad as a fallback
 const PADMAP_ALL=parseMap(QS.get("map"))||DEFAULT_PADMAP;
 const padMapFor=i=>parseMap(QS.get("map"+i))||PADMAP_ALL;
-if(QS.has("kiosk")){ const st=document.createElement("style"); st.textContent="*{cursor:none !important}"; document.head.appendChild(st); }
+if(QS.has("kiosk")){   // arcade cabinet: no cursor, no scrolling, whole machine scaled to fit the screen
+  const st=document.createElement("style");
+  st.textContent="*{cursor:none !important} html,body{overflow:hidden !important} body{padding:6px !important}";
+  document.head.appendChild(st);
+  const stage=document.querySelector(".stage");
+  const fit=()=>{ stage.style.zoom=1; const z=Math.min(1.6,(innerHeight-12)/stage.offsetHeight); stage.style.zoom=z.toFixed(3); };
+  addEventListener("resize",fit); addEventListener("load",fit); setTimeout(fit,300); fit();
+}
 
 function modalOpen(id){ return $(id).classList.contains("open"); }
 function focusables(){

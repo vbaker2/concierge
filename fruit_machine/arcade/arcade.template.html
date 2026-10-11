@@ -124,6 +124,7 @@
   canvas#pot{ width:100%; height:auto; display:block; filter:drop-shadow(0 4px 7px rgba(0,0,0,.55)); }
   .potmeter{ height:14px; border-radius:8px; background:#1a0405; overflow:hidden; border:1px solid #5a0d10; }
   .potmeter i{ display:block; height:100%; width:0; background:linear-gradient(90deg,#c8901a,#ffe27a); box-shadow:0 0 10px rgba(255,210,90,.7); transition:width .35s; }
+  .potpct{ text-align:center; font-family:'Courier New',monospace; font-weight:900; font-size:22px; letter-spacing:2px; color:#ffe27a; text-shadow:0 0 10px rgba(255,200,60,.6); margin-top:-4px; }
   .hsbox{ border-radius:12px; padding:12px; text-align:center; background:#1a0405; border:2px solid #3a0708; box-shadow:inset 0 0 16px rgba(0,0,0,.8); }
   .hsbox.on{ border-color:#ffd257; box-shadow:0 0 22px rgba(255,190,60,.5), inset 0 0 16px rgba(0,0,0,.8); }
   .pips{ display:flex; justify-content:center; gap:10px; margin:8px 0; }
@@ -219,6 +220,7 @@
     <div class="ptitle">CASH POT</div>
     <canvas id="pot"></canvas>
     <div class="potmeter"><i id="potfill"></i></div>
+    <div class="potpct" id="potpct">0% FULL</div>
     <div class="note">Gold coins fill the pot — full pot plays the <b>Jackpot Pick</b>. Bigger bets fill it faster.</div>
     <div class="hsbox" id="hsbox">
       <div class="ptitle">HOLD &amp; SPIN</div>
@@ -367,7 +369,9 @@ function refresh(){
     d.classList.toggle("lit", freeActive && i<=cur); d.classList.toggle("cur", freeActive && i===cur); });
   $("freebox").classList.toggle("on",freeActive);
   $("freeleft").textContent=freeSpins; $("freewon").textContent="WON "+freeWon.toLocaleString();
-  $("potfill").style.width=(100*Math.min(1,potCoins/POT_NEED)).toFixed(1)+"%";
+  const pf=Math.min(1,potCoins/POT_NEED);
+  $("potfill").style.width=(100*pf).toFixed(1)+"%";
+  $("potpct").textContent = potState==="open" ? Math.floor(100*pf)+"% FULL" : "JACKPOT PICK!";
   const hb=$("hsbox"); hb.classList.toggle("on",!!hs);
   [...$("pips").children].forEach((p,i)=>p.classList.toggle("on", !!hs && i<hs.respins));
   $("hsval").textContent = hs ? hsTotalShown.toLocaleString() : "6 COINS";
@@ -488,8 +492,12 @@ function onCoinLanded(){
   potBump=now()+240;
   if(potState==="open"){
     const before=potCoins/POT_NEED; potCoins=Math.min(POT_NEED, potCoins+wager()/T.JP_REF); coinSnd();
-    const after=potCoins/POT_NEED;
-    if(before<0.25&&after>=0.25) playSnd("pot25",0.8,pitch()); else if(before<0.5&&after>=0.5) playSnd("pot50",0.85,pitch()); else if(before<0.75&&after>=0.75) playSnd("pot75",0.9,pitch());
+    const after=potCoins/POT_NEED, s0=potStage(before), s1=potStage(after);
+    if(s1>s0 && after<1){   // crossed 25 / 50 / 75 %: level-up flash, tag and milestone sound
+      potLevelFx={ label:(s1*25)+"%", t0:now() };
+      playSnd(["","pot25","pot50","pot75"][s1],0.9,pitch());
+      setLed("CASH POT "+(s1*25)+"% FULL"+(s1===3?" · IT'S RATTLING!":""));
+    } else if(after>=0.75 && after<1) playSnd("pot75",0.35+0.4*after,pitch());   // rattles on every coin near the top
     refresh();
     if(potCoins>=POT_NEED){ startPotClose(); }
   }
@@ -499,12 +507,14 @@ function onCoinLanded(){
 function startPotClose(){
   potState="closing"; potLidStart=now(); flyers.length=0; pendingCollect=0;
   setLed("★ CASH POT FULL — LID CLOSING! ★");
-  if(!playSnd("pot100",0.9)) receptionBell();
-  setTimeout(()=>playSnd("pot_slam",1.0),650);
-  setTimeout(()=>{ potState="feature"; startJackpotPick(); },1250);
+  if(!playSnd("pot100",1.0)) receptionBell();          // full pot shakes violently (drawPot) …
+  setTimeout(()=>{ playSnd("pot_slam",1.0); potLidSlam(); coinRainUntil=now()+900; }, 860);   // … then the lid lands
+  setTimeout(()=>{ potState="feature"; startJackpotPick(); }, 1900);
   refresh();
 }
-function potReset(){ potCoins=0; potState="open"; refresh(); }
+function potReset(){ potCoins=0; potState="open"; potLevelFx=null; refresh(); }
+// a nervous rattle every so often while the pot sits nearly full
+setInterval(()=>{ if(potState==="open" && potCoins/POT_NEED>=0.9 && state==="idle") playSnd("pot75",0.45,pitch()); }, 1700);
 
 /* ---------- Jackpot Pick ---------- */
 const tierLab=k=>({mini:"MINI",minor:"MINOR",major:"MAJOR",grand:"GRAND"}[k]);

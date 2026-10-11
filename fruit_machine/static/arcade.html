@@ -124,6 +124,7 @@
   canvas#pot{ width:100%; height:auto; display:block; filter:drop-shadow(0 4px 7px rgba(0,0,0,.55)); }
   .potmeter{ height:14px; border-radius:8px; background:#1a0405; overflow:hidden; border:1px solid #5a0d10; }
   .potmeter i{ display:block; height:100%; width:0; background:linear-gradient(90deg,#c8901a,#ffe27a); box-shadow:0 0 10px rgba(255,210,90,.7); transition:width .35s; }
+  .potpct{ text-align:center; font-family:'Courier New',monospace; font-weight:900; font-size:22px; letter-spacing:2px; color:#ffe27a; text-shadow:0 0 10px rgba(255,200,60,.6); margin-top:-4px; }
   .hsbox{ border-radius:12px; padding:12px; text-align:center; background:#1a0405; border:2px solid #3a0708; box-shadow:inset 0 0 16px rgba(0,0,0,.8); }
   .hsbox.on{ border-color:#ffd257; box-shadow:0 0 22px rgba(255,190,60,.5), inset 0 0 16px rgba(0,0,0,.8); }
   .pips{ display:flex; justify-content:center; gap:10px; margin:8px 0; }
@@ -219,6 +220,7 @@
     <div class="ptitle">CASH POT</div>
     <canvas id="pot"></canvas>
     <div class="potmeter"><i id="potfill"></i></div>
+    <div class="potpct" id="potpct">0% FULL</div>
     <div class="note">Gold coins fill the pot — full pot plays the <b>Jackpot Pick</b>. Bigger bets fill it faster.</div>
     <div class="hsbox" id="hsbox">
       <div class="ptitle">HOLD &amp; SPIN</div>
@@ -779,36 +781,65 @@ function drawDrum(g,R){
 /* ---------- Cash pot rendering ---------- */
 function goldGrad(g,x,y){ const gr=g.createLinearGradient(x,y-15,x,y+15);
   gr.addColorStop(0,"#ffe9a0"); gr.addColorStop(.5,"#e0a828"); gr.addColorStop(1,"#8a5c00"); return gr; }
+// Cash pot (arcade): four even fill stages with a level-up flash, a rattle that builds from 75%
+// to violent near full, then the full pot shakes, glows and the lid slams on with a coin burst.
+let potLevelFx=null;            // {label, t0} — set when the pot crosses 25/50/75%
+const potBurst=[];               // coins thrown out when the lid slams
+function potStage(f){ return f<0.25?0 : f<0.5?1 : f<0.75?2 : 3; }
 function drawPot(tn){
   pctx.clearRect(0,0,POTW,POTH);
   if(!potReady) return;
-  const f=Math.min(1, potCoins/POT_NEED), left=POT_NEED-potCoins;
-  // pick the pot-state image by fill fraction; closed lid while closing / running the feature
+  const f=Math.min(1, potCoins/POT_NEED), el=tn-potLidStart;
+  const closing=potState==="closing", shut=potState==="closed"||potState==="feature";
   let img;
-  if(potState==="closing" || potState==="closed" || potState==="feature"){ img=potImgs.potC; }
-  else if(f>=0.99){ img=potImgs.pot100; }
-  else if(f>=0.70){ img=potImgs.pot75; }
-  else if(f>=0.40){ img=potImgs.pot50; }
-  else { img=potImgs.pot25; }
-  img = img || potImgs.pot25 || potImgs.potC;
-  if(!img) return;
-  // rattle harder the closer it is to bursting
-  let sx=0, sy=0;
-  if(potState==="open" && potCoins>0 && left<=2){ const inten=left<=1?3.6:1.9; sx=(Math.random()*2-1)*inten; sy=(Math.random()*2-1)*inten; }
-  // gentle bump per collected coin; a punch while the pot bursts
-  let scale = tn<potBump ? 1+0.05*Math.sin((tn-(potBump-240))/240*Math.PI) : 1;
-  if(potState==="closing"){ const p=Math.min(1,(tn-potLidStart)/700); scale*=1+0.2*Math.sin(p*Math.PI); }
-  const pad=10, w=POTW-2*pad, h=POTH-2*pad, ox=pad, oy=pad;   // 320x268 source band → 320x270, true proportions
+  if(shut || (closing && el>=650)) img=potImgs.potC;
+  else if(closing) img=potImgs.pot100;
+  else img=[potImgs.pot25,potImgs.pot50,potImgs.pot75,potImgs.pot100][f<0.375?0:f<0.625?1:f<0.875?2:3];
+  img=img||potImgs.pot25||potImgs.potC; if(!img) return;
+
+  // rattle: nothing below 75%, then builds steeply; the bursting pot shakes hardest
+  let shake=0;
+  if(potState==="open" && f>=0.75) shake=Math.pow((f-0.75)/0.25,1.6)*7 + (f>=0.95?3:0);
+  if(closing && el<650) shake=11;
+  const sx=shake*(Math.random()*2-1), sy=shake*0.6*(Math.random()*2-1), rot=shake*0.008*Math.sin(tn/45);
+
+  // bounce per coin, a big hop on each level-up, squash when the lid lands
+  let sc=tn<potBump ? 1+0.05*Math.sin((tn-(potBump-240))/240*Math.PI) : 1, sqx=1, sqy=1, dy=0;
+  const lv=potLevelFx && tn-potLevelFx.t0<1100 ? (tn-potLevelFx.t0)/1100 : -1;
+  if(lv>=0 && lv<0.35) sc*=1+0.14*Math.sin(lv/0.35*Math.PI);
+  if(closing && el<650) sc*=1+0.06*Math.sin(el/650*Math.PI);
+  if(closing && el>=650){ const p=Math.min(1,(el-650)/450);
+    if(p<0.45){ dy=-36*(1-p/0.45); }                                   // lid drops in
+    else { const q=(p-0.45)/0.55; sqx=1+0.10*Math.sin(q*Math.PI)*(1-q); sqy=1-0.12*Math.sin(q*Math.PI)*(1-q); } }
+
+  const pad=10, w=POTW-2*pad, h=POTH-2*pad;
   const k=(img.naturalHeight||320)/320, S=[0, POT_SY*k, img.naturalWidth||320, POT_SH*k];
   pctx.save();
-  pctx.translate(POTW/2+sx, POTH*0.6+sy); pctx.scale(scale,scale); pctx.translate(-POTW/2,-POTH*0.6);
-  pctx.drawImage(img, ...S, ox, oy, w, h);
-  // brighten / glow as it nears full and bursts
-  if(potState!=="open" || left<=1){
-    pctx.save(); pctx.globalCompositeOperation="lighter"; pctx.globalAlpha=0.22+0.2*Math.sin(tn/110);
-    pctx.drawImage(img, ...S, ox, oy, w, h); pctx.restore();
-  }
+  pctx.translate(POTW/2+sx, POTH*0.62+sy+dy); pctx.rotate(rot); pctx.scale(sc*sqx, sc*sqy); pctx.translate(-POTW/2,-POTH*0.62);
+  pctx.drawImage(img, ...S, pad, pad, w, h);
+  // glow: pulses from 90% full, flashes on a level-up, blazes while bursting / during the pick
+  let glow=0;
+  if(potState==="open" && f>=0.9) glow=0.18+0.14*Math.sin(tn/120);
+  if(lv>=0) glow=Math.max(glow, 0.6*(1-lv));
+  if(closing || shut) glow=Math.max(glow, 0.25+0.2*Math.sin(tn/90));
+  if(glow>0){ pctx.save(); pctx.globalCompositeOperation="lighter"; pctx.globalAlpha=Math.min(1,glow); pctx.drawImage(img, ...S, pad, pad, w, h); pctx.restore(); }
   pctx.restore();
+
+  // coins burst out of the rim when the lid slams
+  for(let i=potBurst.length-1;i>=0;i--){ const c=potBurst[i], t=(tn-c.t0)/1000;
+    if(t>1.4){ potBurst.splice(i,1); continue; }
+    drawFlyCoin(pctx, c.x+c.vx*t, c.y+c.vy*t+420*t*t, 9, c.r+t*10); }
+
+  // floating "50%" tag on a level-up
+  if(lv>=0){ pctx.save(); pctx.globalAlpha=Math.min(1,(1-lv)*1.6); pctx.textAlign="center";
+    pctx.font="900 44px 'Cinzel Decorative','Cinzel',Georgia,serif"; pctx.lineWidth=6; pctx.strokeStyle="#4a1600";
+    const y=POTH*0.42-lv*70; pctx.strokeText(potLevelFx.label,POTW/2,y);
+    const g=pctx.createLinearGradient(0,y-36,0,y); g.addColorStop(0,"#fffbe0"); g.addColorStop(1,"#f2b52a");
+    pctx.fillStyle=g; pctx.fillText(potLevelFx.label,POTW/2,y); pctx.restore(); }
+}
+function potLidSlam(){   // called when the lid lands
+  const t=now(); for(let i=0;i<16;i++){ const a=-Math.PI/2+(Math.random()-0.5)*2.2, v=260+Math.random()*220;
+    potBurst.push({x:POTW/2+(Math.random()-0.5)*120, y:POTH*0.38, vx:Math.cos(a)*v, vy:Math.sin(a)*v, r:Math.random()*6, t0:t}); }
 }
 function drawLid(cx,openY,topR,a){
   const g=pctx; g.save();
@@ -1030,7 +1061,9 @@ function refresh(){
     d.classList.toggle("lit", freeActive && i<=cur); d.classList.toggle("cur", freeActive && i===cur); });
   $("freebox").classList.toggle("on",freeActive);
   $("freeleft").textContent=freeSpins; $("freewon").textContent="WON "+freeWon.toLocaleString();
-  $("potfill").style.width=(100*Math.min(1,potCoins/POT_NEED)).toFixed(1)+"%";
+  const pf=Math.min(1,potCoins/POT_NEED);
+  $("potfill").style.width=(100*pf).toFixed(1)+"%";
+  $("potpct").textContent = potState==="open" ? Math.floor(100*pf)+"% FULL" : "JACKPOT PICK!";
   const hb=$("hsbox"); hb.classList.toggle("on",!!hs);
   [...$("pips").children].forEach((p,i)=>p.classList.toggle("on", !!hs && i<hs.respins));
   $("hsval").textContent = hs ? hsTotalShown.toLocaleString() : "6 COINS";
@@ -1151,8 +1184,12 @@ function onCoinLanded(){
   potBump=now()+240;
   if(potState==="open"){
     const before=potCoins/POT_NEED; potCoins=Math.min(POT_NEED, potCoins+wager()/T.JP_REF); coinSnd();
-    const after=potCoins/POT_NEED;
-    if(before<0.25&&after>=0.25) playSnd("pot25",0.8,pitch()); else if(before<0.5&&after>=0.5) playSnd("pot50",0.85,pitch()); else if(before<0.75&&after>=0.75) playSnd("pot75",0.9,pitch());
+    const after=potCoins/POT_NEED, s0=potStage(before), s1=potStage(after);
+    if(s1>s0 && after<1){   // crossed 25 / 50 / 75 %: level-up flash, tag and milestone sound
+      potLevelFx={ label:(s1*25)+"%", t0:now() };
+      playSnd(["","pot25","pot50","pot75"][s1],0.9,pitch());
+      setLed("CASH POT "+(s1*25)+"% FULL"+(s1===3?" · IT'S RATTLING!":""));
+    } else if(after>=0.75 && after<1) playSnd("pot75",0.35+0.4*after,pitch());   // rattles on every coin near the top
     refresh();
     if(potCoins>=POT_NEED){ startPotClose(); }
   }
@@ -1162,12 +1199,14 @@ function onCoinLanded(){
 function startPotClose(){
   potState="closing"; potLidStart=now(); flyers.length=0; pendingCollect=0;
   setLed("★ CASH POT FULL — LID CLOSING! ★");
-  if(!playSnd("pot100",0.9)) receptionBell();
-  setTimeout(()=>playSnd("pot_slam",1.0),650);
-  setTimeout(()=>{ potState="feature"; startJackpotPick(); },1250);
+  if(!playSnd("pot100",1.0)) receptionBell();          // full pot shakes violently (drawPot) …
+  setTimeout(()=>{ playSnd("pot_slam",1.0); potLidSlam(); coinRainUntil=now()+900; }, 860);   // … then the lid lands
+  setTimeout(()=>{ potState="feature"; startJackpotPick(); }, 1900);
   refresh();
 }
-function potReset(){ potCoins=0; potState="open"; refresh(); }
+function potReset(){ potCoins=0; potState="open"; potLevelFx=null; refresh(); }
+// a nervous rattle every so often while the pot sits nearly full
+setInterval(()=>{ if(potState==="open" && potCoins/POT_NEED>=0.9 && state==="idle") playSnd("pot75",0.45,pitch()); }, 1700);
 
 /* ---------- Jackpot Pick ---------- */
 const tierLab=k=>({mini:"MINI",minor:"MINOR",major:"MAJOR",grand:"GRAND"}[k]);

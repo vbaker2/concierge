@@ -272,7 +272,9 @@
       Jackpots are <b>fixed</b> at every bet — bigger bets fill the pot faster
       (about 50 coins at a bet of 88; a bet of 8 needs about 11× as many).<br>
       <b>LANTERN</b> — land <b>3+</b> anywhere for <b style="color:#7dffb0">8 Free Games</b> with all
-      wins <b>doubled</b> (re-triggerable).
+      wins <b>×5</b> (re-triggerable).<br>
+      <b>TAIKO DRUM</b> — 3+ from the left for the Taiko bonus: choose your free spins, all wins <b>×5</b>.<br>
+      During <b>all free spins</b> the reels are loaded: far more 福 wilds, Lucky 88s and gold coins.
     </div>
     <button class="btn close" id="closeModal">CLOSE</button>
   </div>
@@ -294,8 +296,8 @@
     <h2>🥁 Taiko Free Spins</h2>
     <div class="sub">Three drums! Choose your free spins:</div>
     <div class="choicebtns">
-      <button class="choicecard" id="choiceA"><span class="big">3</span>FREE SPINS<small>6 ROWS · 8 LINES</small></button>
-      <button class="choicecard" id="choiceB"><span class="big">10</span>FREE SPINS<small>4 ROWS · 4 LINES</small></button>
+      <button class="choicecard" id="choiceA"><span class="big">3</span>FREE SPINS<small>6 ROWS · 8 LINES · ×5</small></button>
+      <button class="choicecard" id="choiceB"><span class="big">10</span>FREE SPINS<small>4 ROWS · 4 LINES · ×5</small></button>
     </div>
   </div>
 </div>
@@ -424,16 +426,30 @@ const sprites=SYMS.map(s=>{
 });
 
 /* ---------- Reels ---------- */
-function makeStrip(){
+// Free spins use richer strips: more wilds/88s and far more gold coins.
+// Lanterns are NOT boosted — retriggers run away (simulated feature RTP > 170%).
+const FREE_BOOST={ fu:2, eight:2, coin:3 };
+function makeStrip(boost){
   const pool=[];
-  SYMS.forEach(s=>{ for(let k=0;k<s.weight;k++) pool.push(s.idx); });
+  SYMS.forEach(s=>{ const w=Math.round(s.weight*((boost&&boost[s.id])||1)); for(let k=0;k<w;k++) pool.push(s.idx); });
   for(let i=pool.length-1;i>0;i--){ const j=Math.random()*(i+1)|0; [pool[i],pool[j]]=[pool[j],pool[i]]; }
   return pool;
 }
 const reels=Array.from({length:REELS},()=>({
-  strip:makeStrip(), pos:Math.random()*NSYM, vel:0, phase:"stopped",
+  strip:null, baseStrip:makeStrip(), freeStrip:makeStrip(FREE_BOOST), pos:Math.random()*NSYM, vel:0, phase:"stopped",
   stopAt:0, decFrom:0, decTo:0, decStart:0, decDur:0,
 }));
+reels.forEach(r=>{ r.strip=r.baseStrip; });
+// switch a reel between its base and free strips without the visible symbols jumping:
+// copy what's on screen (plus a row either side) into the target strip at the same position
+function useStrips(free){
+  reels.forEach(r=>{
+    const to=free?r.freeStrip:r.baseStrip; if(r.strip===to) return;
+    const from=r.strip, b=Math.round(r.pos), L=from.length, M=to.length;
+    for(let k=-1;k<=ROWS;k++) to[((b+k)%M+M)%M]=from[((b+k)%L+L)%L];
+    r.pos=((r.pos%M)+M)%M; r.strip=to;
+  });
+}
 function gridAt(i,r){ const b=Math.round(reels[i].pos); const idx=((b+r)%reels[i].strip.length+reels[i].strip.length)%reels[i].strip.length; return reels[i].strip[idx]; }
 function readGrid(){ const g=[]; for(let i=0;i<REELS;i++){ g[i]=[]; for(let r=0;r<ROWS;r++) g[i][r]=gridAt(i,r); } return g; }
 
@@ -442,7 +458,8 @@ const BETS=[8,16,40,88,168];
 let betIdx=0;
 let credits=500, lastWin=0, state="idle";
 let freeSpins=0, freeActive=false, freeMult=2, freeLineCount=0;
-const PAY_SCALE=0.455;                              // tunes long-term RTP (~76%, 4 reels)
+const PAY_SCALE=0.33;                               // tunes long-term RTP (~76%, 4 reels); was 0.455 before free spins went ×5 + boosted strips
+const FREE_MULT=5;                                  // all free-spin wins (lantern and taiko)
 const ROW_NORM={4:1, 6:0.153};                      // keeps 6-row RTP ~ 4-row RTP
 const JMULT={ mini:1, minor:4, major:16, grand:80 };// jackpot tiers relative to JP_REF
 const JP_REF=88;                                    // reference wager: jackpots are fixed at JMULT×88
@@ -560,13 +577,11 @@ function stopSpinSound(){ if(spinLoopSrc){ stopSnd(spinLoopSrc); spinLoopSrc=nul
 const click=()=>tone(200,0.05,"square",0.1);
 const coinSnd=()=>{ const k="coin"+(1+(Math.random()*6|0)); if(playSnd(k,0.6,pitch())) return; tone(880,0.06,"square",0.14); tone(1320,0.09,"square",0.12,0.05); };
 function winTune(big,total){
-  // prefer the recorded win samples; fall back to the synth jingle
-  if(hasSnd("win_big")||hasSnd("win_medium")||hasSnd("win_small")){
-    const key = big ? "win_big" : ((total!=null && total>=40*betFactor()) ? "win_medium" : "win_small");
-    if(playSnd(key, big?0.95:0.8, pitch())) return;
-  }
-  const n=big?[523,659,784,1047,1319,1047,1568,2093]:[523,659,784,1047];
-  n.forEach((x,i)=>tone(x,0.16,"square",0.15,i*0.1)); }
+  // real coins only — the win_* chime samples sounded like a reception bell
+  if(big){ if(!hasSnd("coins_spill")) playSnd("cashfall_big",0.8,pitch()); return; }   // big wins already spill coins
+  if(total!=null && total>=40*betFactor()){ if(playSnd("coins_many",0.7,pitch())) return; }
+  coinSnd(); setTimeout(coinSnd,110); setTimeout(coinSnd,240);   // a few clinks for a small win
+}
 // a single gong strike: inharmonic metallic partials + shimmer + noise transient
 function gongStrike(when, gain){
   const ac=audio(); if(!ac) return; const t=ac.currentTime+when;
@@ -663,6 +678,7 @@ function doSpin(){
   if(musicMode==="off") startMusic("calm");
 
   if(freeActive){ freeSpins--; } else { credits-=wager(); tickJackpots(); }
+  useStrips(freeActive);   // richer reels during free spins
   lastWin=0; winCells.clear(); winLines=[]; pendingFree=0; plasmaPath=null;
   state="spinning"; spinningCount=REELS; stoppedCount=0;
   const t=now();
@@ -738,7 +754,7 @@ function resolve(){
   const res = linemode ? evaluateLines(grid,freeLineCount) : evaluate(grid);
   let mult = PAY_SCALE * betFactor();            // proportional to the wager
   if(!linemode) mult *= (ROW_NORM[ROWS]||1);     // row-normalise the 243-ways wins
-  if(freeActive) mult *= freeMult;               // ×2 during lantern free games
+  if(freeActive) mult *= freeMult;               // ×FREE_MULT during free spins
   let total = Math.round(res.total * mult);
   winCells=res.cells;
   winLines = res.lines || [];
@@ -791,10 +807,10 @@ function showDrumChoice(){
 }
 function chooseFree(spins,lines,rows){
   $("choiceModal").classList.remove("open");
-  freeActive=true; freeSpins=spins; freeMult=1; freeLineCount=lines;
+  freeActive=true; freeSpins=spins; freeMult=FREE_MULT; freeLineCount=lines;
   setRows(rows);
   drumHit(); startFeatureMusic();
-  setLed("★ "+spins+" FREE SPINS · "+rows+" ROWS · "+lines+" LINES ★");
+  setLed("★ "+spins+" FREE SPINS · "+lines+" LINES · WINS ×"+FREE_MULT+" ★");
   endSpin();
 }
 
@@ -841,8 +857,8 @@ function potReset(){ potCoins=0; potState="open"; POT_NEED=randNeed(); updatePot
 function updatePotMeter(){ /* the pot image itself shows the fill; no text/meter */ }
 function grantFreeGames(n){
   const retrig=freeActive;
-  freeActive=true; freeSpins+=n; freeMult=2; freeLineCount=0;
-  setLed(retrig ? ("+"+n+" FREE GAMES!") : ("★ "+n+" FREE GAMES · WINS ×2 ★"));
+  freeActive=true; freeSpins+=n; freeMult=FREE_MULT; freeLineCount=0;
+  setLed(retrig ? ("+"+n+" FREE GAMES!") : ("★ "+n+" FREE GAMES · WINS ×"+FREE_MULT+" ★"));
   if(!playSnd("feature_trigger",0.9)){ tone(660,0.1,"square",0.16); tone(990,0.14,"square",0.14,0.1); }
   if(!retrig) startFeatureMusic();
   setTimeout(endSpin, 900);

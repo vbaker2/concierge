@@ -219,9 +219,8 @@
   <aside class="panel"><div class="panel-in">
     <div class="ptitle">CASH POT</div>
     <canvas id="pot"></canvas>
-    <div class="potmeter"><i id="potfill"></i></div>
-    <div class="potpct" id="potpct">0% FULL</div>
-    <div class="note">Gold coins fill the pot — full pot plays the <b>Jackpot Pick</b>. Bigger bets fill it faster.</div>
+    <div class="note">Gold coins fill the pot. When it's full the lid slams shut for the <b>Jackpot Pick</b>.
+      Listen for the rattle… and watch for the <b>Lucky Boost</b>.</div>
     <div class="hsbox" id="hsbox">
       <div class="ptitle">HOLD &amp; SPIN</div>
       <div class="pips" id="pips"><span class="pip"></span><span class="pip"></span><span class="pip"></span></div>
@@ -299,7 +298,7 @@ const BETS=[8,16,40,88,168,252];
 let betIdx=0, credits=1000, lastWin=0, state="idle";
 const wager=()=>BETS[betIdx], betFactor=()=>wager()/8;
 let winCells=new Set(), winFlashUntil=0, coinRainUntil=0, plasmaPath=null, plasmaStart=0;
-const POT_NEED=T.POT_NEED; let potCoins=0, potState="open", potLidStart=0, potBump=0;
+const POT_NEED=T.POT_NEED; let potCoins=GM.potStart(Math.random), potState="open", potLidStart=0, potBump=0;   // never starts empty
 const flyers=[]; let pendingCollect=0;
 let musicMode="off";   // used by the shared bgm helpers
 
@@ -369,9 +368,6 @@ function refresh(){
     d.classList.toggle("lit", freeActive && i<=cur); d.classList.toggle("cur", freeActive && i===cur); });
   $("freebox").classList.toggle("on",freeActive);
   $("freeleft").textContent=freeSpins; $("freewon").textContent="WON "+freeWon.toLocaleString();
-  const pf=Math.min(1,potCoins/POT_NEED);
-  $("potfill").style.width=(100*pf).toFixed(1)+"%";
-  $("potpct").textContent = potState==="open" ? Math.floor(100*pf)+"% FULL" : "JACKPOT PICK!";
   const hb=$("hsbox"); hb.classList.toggle("on",!!hs);
   [...$("pips").children].forEach((p,i)=>p.classList.toggle("on", !!hs && i<hs.respins));
   $("hsval").textContent = hs ? hsTotalShown.toLocaleString() : "6 COINS";
@@ -444,6 +440,12 @@ function payWays(){
 }
 function afterPay(){
   if(pending.hs){ pending.hs=false; setTimeout(()=>startHoldSpin(grid), 500); return; }
+  // every so often on a paid spin a Lucky Boost pours coins into the pot (keeps it from being a waiting game)
+  const boost=(!freeActive && potState==="open") ? GM.potBoost(Math.random, wager()) : 0;
+  if(boost){ luckyBoost(boost, collectSpinCoins); return; }
+  collectSpinCoins();
+}
+function collectSpinCoins(){
   const cells=[]; for(let i=0;i<REELS;i++) for(let r=0;r<ROWS;r++) if(grid[i][r]===COIN) cells.push([i,r]);
   if(cells.length && potState==="open"){ state="collecting"; refresh(); launchCoinFlyers(cells); }
   else continueAfterSpin();
@@ -473,6 +475,7 @@ function presentWin(total, done){
 /* ---------- Free spins ---------- */
 function grantFreeSpins(n){
   const retrig=freeActive;
+  stopAutoForFeature();
   if(!retrig){ freeActive=true; freeSpins=0; ladderStep=0; freeWon=0; startFeatureMusic(); }
   freeSpins+=n;
   setLed(retrig ? ("+"+n+" FREE SPINS!") : ("★ "+n+" FREE SPINS · CLIMB THE LADDER ★"));
@@ -488,23 +491,36 @@ function launchCoinFlyers(cells){
   cells.forEach(([i,r],k)=>{ const src={ x:rc.left+(reelX(i)+CELLW/2)/CW*rc.width, y:rc.top+rowCY(r)/CH*rc.height };
     setTimeout(()=>flyers.push({x0:src.x,y0:src.y,x1:dst.x,y1:dst.y,t0:now(),dur:700,arc:80+Math.random()*50,rot:Math.random()*6}), k*140); });
 }
-function onCoinLanded(){
+function potAdd(amt){   // the fill level is never shown as a number — only the pot itself tells you
+  const before=potCoins/POT_NEED; potCoins=Math.min(POT_NEED, potCoins+amt); coinSnd();
+  const after=potCoins/POT_NEED, s0=potStage(before), s1=potStage(after);
+  if(s1>s0 && after<1){   // crossed a quarter: hop, gold flash and milestone sound, but no numbers
+    potLevelFx={ label:"", t0:now() };
+    playSnd(["","pot25","pot50","pot75"][s1],0.9,pitch());
+    setLed(["","THE POT IS FILLING…","THE POT IS GETTING HEAVIER…","THE POT IS RATTLING!"][s1]);
+  } else if(after>=0.75 && after<1) playSnd("pot75",0.35+0.4*after,pitch());   // rattles on every coin near the top
+  if(potCoins>=POT_NEED) startPotClose();
+}
+function onCoinLanded(fl){
   potBump=now()+240;
-  if(potState==="open"){
-    const before=potCoins/POT_NEED; potCoins=Math.min(POT_NEED, potCoins+wager()/T.JP_REF); coinSnd();
-    const after=potCoins/POT_NEED, s0=potStage(before), s1=potStage(after);
-    if(s1>s0 && after<1){   // crossed 25 / 50 / 75 %: level-up flash, tag and milestone sound
-      potLevelFx={ label:(s1*25)+"%", t0:now() };
-      playSnd(["","pot25","pot50","pot75"][s1],0.9,pitch());
-      setLed("CASH POT "+(s1*25)+"% FULL"+(s1===3?" · IT'S RATTLING!":""));
-    } else if(after>=0.75 && after<1) playSnd("pot75",0.35+0.4*after,pitch());   // rattles on every coin near the top
-    refresh();
-    if(potCoins>=POT_NEED){ startPotClose(); }
-  }
+  if(fl && fl.boost){ if(potState==="open") potAdd(fl.amt);
+    if(--boostPending===0 && potState==="open") setTimeout(boostDone, 400); return; }
+  if(potState==="open") potAdd(wager()/T.JP_REF);
   pendingCollect=Math.max(0,pendingCollect-1);
   if(pendingCollect<=0 && potState==="open") continueAfterSpin();
 }
+let boostPending=0, boostDone=null;
+function luckyBoost(amt, done){
+  state="collecting"; refresh();
+  setLed("★ LUCKY BOOST · COINS POUR INTO THE POT! ★");
+  playSnd("coins_spill",0.6,pitch()); coinRainUntil=now()+1400;
+  const pc=potCanvas.getBoundingClientRect(), dst={ x:pc.left+pc.width*0.5, y:pc.top+pc.height*0.4 }, n=12;
+  boostPending=n; boostDone=done;
+  for(let k=0;k<n;k++) flyers.push({ x0:innerWidth*(0.25+Math.random()*0.75), y0:-30, x1:dst.x+(Math.random()-0.5)*40, y1:dst.y,
+    t0:now()+300+k*110, dur:850, arc:30+Math.random()*60, rot:Math.random()*6, amt:amt/n, boost:true });
+}
 function startPotClose(){
+  stopAutoForFeature();
   potState="closing"; potLidStart=now(); flyers.length=0; pendingCollect=0;
   setLed("★ CASH POT FULL — LID CLOSING! ★");
   if(!playSnd("pot100",1.0)) receptionBell();          // full pot shakes violently (drawPot) …
@@ -512,7 +528,9 @@ function startPotClose(){
   setTimeout(()=>{ potState="feature"; startJackpotPick(); }, 1900);
   refresh();
 }
-function potReset(){ potCoins=0; potState="open"; potLevelFx=null; refresh(); }
+function potReset(){ potCoins=GM.potStart(Math.random); potState="open"; potLevelFx=null; refresh(); }   // restarts part-full, never dead
+// any feature win switches auto play off so the player sees (and plays) it
+function stopAutoForFeature(){ if(autoPlay){ toggleAuto(); } }
 // a nervous rattle every so often while the pot sits nearly full
 setInterval(()=>{ if(potState==="open" && potCoins/POT_NEED>=0.9 && state==="idle") playSnd("pot75",0.45,pitch()); }, 1700);
 
@@ -550,6 +568,7 @@ function awardJackpot(k, done){
 /* ---------- Hold & Spin ---------- */
 const coinLabel=v=> v.jp ? tierLab(v.jp) : (v.cr*wager()).toLocaleString();
 function startHoldSpin(g){
+  stopAutoForFeature();
   state="holdspin"; hs=GM.hsStart(g, Math.random, wager()); hsPop={};
   hsTotalShown=GM.hsTotal(hs, wager());
   startFeatureMusic(); playSnd("feature_trigger",0.95); coinRainUntil=now()+1200;
@@ -612,6 +631,7 @@ function drawWheel(tn){
   c.fillStyle="#ffe08a"; c.strokeStyle="#6e4c08"; c.lineWidth=3; c.fill(); c.stroke();
 }
 function startWheel(){
+  stopAutoForFeature();
   state="wheel"; wheelResult=-1; startFeatureMusic(); playSnd("feature_trigger",0.95); drumHit();
   setLed("★ TAIKO DRUMS · SPIN THE DRAGON WHEEL ★");
   $("wheelBtn").disabled=false; $("wheelModal").classList.add("open"); refresh();

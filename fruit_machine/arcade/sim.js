@@ -12,7 +12,11 @@ let hits = 0;
 const base = GM.baseStrips(), free = GM.freeStrips();   // the game's fixed strips
 
 const R = { base:0, free:0, hs:0, wheel:0, pot:0 }, C = { free:0, hs:0, wheel:0, pot:0, hsGrand:0 };
-let potCoins = 0;
+let potCoins = GM.potStart(rng);
+function potAdd(n){
+  potCoins += n;
+  if(potCoins >= T.POT_NEED){ potCoins = GM.potStart(rng); C.pot++; R.pot += GM.JP[GM.pickWinner(GM.pickBoard(rng))]; }
+}
 
 let lastExpanded = 0;
 function waysWin(grid, freeMode){
@@ -28,8 +32,7 @@ function holdSpin(grid){
 function collectCoins(grid, bucket){
   const n = GM.count(grid, GM.COIN);
   if(n >= T.HS_TRIGGER){ R.hs += holdSpin(grid); return; }
-  potCoins += n * WAGER / T.JP_REF;
-  if(potCoins >= T.POT_NEED){ potCoins = 0; C.pot++; R.pot += GM.JP[GM.pickWinner(GM.pickBoard(rng))]; }
+  potAdd(n * WAGER / T.JP_REF);
 }
 function freeSpins(n){
   C.free++; let left = n, step = 0, guard = 0;
@@ -59,6 +62,7 @@ for(let s = 0; s < N; s++){
   const g = GM.gridFrom(base, GM.randomStops(base, rng));
   const bw = waysWin(g, false); R.base += bw; if(bw > 0) hits++;
   collectCoins(g);
+  const boost = GM.potBoost(rng, WAGER); if(boost) potAdd(boost);
   const lan = GM.count(g, GM.LANTERN);
   if(lan >= 3) freeSpins(GM.freeAward(lan));
   if(GM.drumRun(g) >= 3) wheel();

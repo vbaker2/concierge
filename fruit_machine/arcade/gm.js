@@ -29,7 +29,7 @@ const GM = (function(){
 
   // ---- tuning (see sim.js) ----
   const T = {
-    PAY_SCALE: 0.108,             // ways pays × PAY_SCALE × (wager/8)
+    PAY_SCALE: 0.105,             // ways pays × PAY_SCALE × (wager/8)
     EXPAND_P:      0.30,          // chance a landed wild expands to fill its reel (base game)
     EXPAND_P_FREE: 0.30,          // …during free spins (each expansion also steps the ladder up)
     FREE_BOOST: { fu:1.6, eight:1.6, coin:1.4 },   // richer strips during free spins
@@ -44,7 +44,10 @@ const GM = (function(){
     HS_JP:    { mini:2.0, minor:0.5 },
     JMULT: { mini:1, minor:4, major:16, grand:80 },
     JP_REF: 88,                   // jackpots fixed at JMULT × 88 whatever the bet
-    POT_NEED: 110,                // full-bet coins to fill the Cash Pot (fill per coin = wager/JP_REF)
+    POT_NEED: 175,                // full-bet coins to fill the Cash Pot (fill per coin = wager/JP_REF)
+    POT_START: [0.15, 0.45],      // after a pot win the pot restarts this full (fraction), so it's never dead
+    POT_BOOST_P: 0.012,           // per paid spin: chance of a Lucky Boost…
+    POT_BOOST: [0.05, 0.25],      // …that adds this much fill (fraction), scaled by wager/JP_REF like coins
     PICK_WEIGHTS: { mini:6, minor:4, major:2, grand:1 },
   };
   const JP = {}; for(const k in T.JMULT) JP[k]=T.JMULT[k]*T.JP_REF;
@@ -150,10 +153,13 @@ const GM = (function(){
     for(let i=tiers.length-1;i>0;i--){ const j=rng()*(i+1)|0; [tiers[i],tiers[j]]=[tiers[j],tiers[i]]; }
     return tiers;
   }
+  // Cash pot: random restart level, and occasional Lucky Boosts (amounts in full-bet coins)
+  const potStart = rng => T.POT_NEED*(T.POT_START[0]+rng()*(T.POT_START[1]-T.POT_START[0]));
+  const potBoost = (rng, wager) => rng()<T.POT_BOOST_P ? T.POT_NEED*(T.POT_BOOST[0]+rng()*(T.POT_BOOST[1]-T.POT_BOOST[0]))*Math.min(1,wager/T.JP_REF) : 0;
   function pickWinner(tiers){ const f={}; for(const t of tiers){ f[t]=(f[t]||0)+1; if(f[t]>=3) return t; } return "mini"; }
 
   return { REELS, ROWS, SYMS, IDX, WILD, COIN, LANTERN, DRUM, T, JP, WHEEL,
     makeStrips, baseStrips, freeStrips, gridFrom, randomStops, expandReels, applyExpand, evalWays, count, drumRun, freeAward,
-    coinValue, coinCredits, hsStart, hsRespin, hsFull, hsTotal, wheelPick, pickBoard, pickWinner };
+    coinValue, coinCredits, hsStart, hsRespin, hsFull, hsTotal, wheelPick, pickBoard, pickWinner, potStart, potBoost };
 })();
 if(typeof module!=="undefined") module.exports=GM;

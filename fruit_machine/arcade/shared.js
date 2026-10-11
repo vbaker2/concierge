@@ -365,7 +365,7 @@ function drawPot(tn){
     drawFlyCoin(pctx, c.x+c.vx*t, c.y+c.vy*t+420*t*t, 9, c.r+t*10); }
 
   // floating "50%" tag on a level-up
-  if(lv>=0){ pctx.save(); pctx.globalAlpha=Math.min(1,(1-lv)*1.6); pctx.textAlign="center";
+  if(lv>=0 && potLevelFx.label){ pctx.save(); pctx.globalAlpha=Math.min(1,(1-lv)*1.6); pctx.textAlign="center";
     pctx.font="900 44px 'Cinzel Decorative','Cinzel',Georgia,serif"; pctx.lineWidth=6; pctx.strokeStyle="#4a1600";
     const y=POTH*0.42-lv*70; pctx.strokeText(potLevelFx.label,POTW/2,y);
     const g=pctx.createLinearGradient(0,y-36,0,y); g.addColorStop(0,"#fffbe0"); g.addColorStop(1,"#f2b52a");
@@ -399,7 +399,8 @@ function drawFx(tn){
   fxctx.clearRect(0,0,innerWidth,innerHeight);
   for(let n=flyers.length-1;n>=0;n--){
     const fl=flyers[n]; const p=(tn-fl.t0)/fl.dur;
-    if(p>=1){ flyers.splice(n,1); onCoinLanded(); continue; }
+    if(p<0) continue;   // not launched yet
+    if(p>=1){ flyers.splice(n,1); onCoinLanded(fl); continue; }
     const x=fl.x0+(fl.x1-fl.x0)*p;
     const y=fl.y0+(fl.y1-fl.y0)*p - fl.arc*Math.sin(Math.PI*p);
     drawFlyCoin(fxctx, x, y, 14-5*p, fl.rot+p*12);

@@ -186,6 +186,10 @@
   .choicecard .big{ font-size:38px; font-weight:900; line-height:1; color:#7a0a10;}
   .choicecard small{ margin-top:6px; font-size:11px; color:#6a3a00; letter-spacing:1px;}
   .choicecard:active{ transform:translateY(3px); box-shadow:inset 0 1px 1px rgba(255,255,255,.6),0 1px 0 #a86e00;}
+  /* joystick / keyboard highlight in the pick bonus and taiko choice */
+  .padfocus{ outline:4px solid #fff; outline-offset:3px; box-shadow:0 0 22px 6px rgba(255,240,160,.9) !important; transform:scale(1.06); }
+  #padDebug{ position:fixed; left:8px; bottom:8px; z-index:99; background:rgba(0,0,0,.8); color:#7dffb0;
+    font:12px/1.4 monospace; padding:6px 8px; border-radius:6px; white-space:pre; pointer-events:none; }
 
   @media (max-width:420px){ .spin{width:84px;height:84px;font-size:16px;} }
 </style>
@@ -1346,12 +1350,110 @@ $("choiceB").onclick=()=>chooseFree(10,4,4);
 $("rowsBtn").onclick=()=>{ if(state!=="idle"||freeActive) return;
   playerRows = playerRows===4?6:4; setRows(playerRows);
   tone(playerRows===6?700:500,0.05); setLed(playerRows+" ROWS · BET "+wager()); refresh(); };
+/* ---------- Controls: keyboard + arcade panel (Gamepad API) ----------
+   Actions: up/down/left/right, select (Start / button 1 / Space / Enter), b2, b3, coin.
+   Raw gamepad button numbers differ per board, so they can be overridden in the URL:
+     ?map=select:0+9,b2:1,b3:2,coin:8     (applies to every pad)
+     ?map1=...                            (pad index 1 only)
+     ?pad=debug                           (overlay showing live button / axis numbers)
+   Hold Coin + Start (select) for 1s to quit (closes the kiosk window). */
+const QS=new URLSearchParams(location.search);
+function parseMap(s){
+  const m={}; if(!s) return null;
+  s.split(",").forEach(p=>{ const [act,nums]=p.split(":"); if(act&&nums) nums.split("+").forEach(n=>{ m[+n]=act; }); });
+  return m;
+}
+const DEFAULT_PADMAP={0:"select",1:"b2",2:"b3",3:"select",9:"select",8:"coin",
+  12:"up",13:"down",14:"left",15:"right"};   // standard-mapping d-pad as a fallback
+const PADMAP_ALL=parseMap(QS.get("map"))||DEFAULT_PADMAP;
+const padMapFor=i=>parseMap(QS.get("map"+i))||PADMAP_ALL;
+
+function modalOpen(id){ return $(id).classList.contains("open"); }
+function focusables(){
+  if(modalOpen("choiceModal")) return {els:[$("choiceA"),$("choiceB")], cols:2};
+  if(modalOpen("bonusModal"))  return {els:[...$("coingrid").children], cols:4};
+  return null;
+}
+let padFocus=0;
+function showFocus(){
+  document.querySelectorAll(".padfocus").forEach(e=>e.classList.remove("padfocus"));
+  const f=focusables(); if(!f) return;
+  padFocus=Math.max(0,Math.min(f.els.length-1,padFocus));
+  f.els[padFocus].classList.add("padfocus");
+}
+function moveFocus(dx,dy){
+  const f=focusables(); if(!f) return;
+  let i=padFocus+dx+dy*f.cols;
+  if(i<0||i>=f.els.length) return;
+  padFocus=i; tone(600,0.03); showFocus();
+}
+function doAction(a){
+  if(AC&&AC.state==="suspended") try{ AC.resume(); }catch(e){}
+  if(soundOn && musicMode==="off") startMusic("calm");
+  if(modalOpen("modal")){                                   // paytable
+    const sh=$("modal").querySelector(".sheet");
+    if(a==="up") sh.scrollBy(0,-120); else if(a==="down") sh.scrollBy(0,120);
+    else if(a==="select"||a==="b2") $("modal").classList.remove("open");
+    return;
+  }
+  const f=focusables();
+  if(f){                                                    // pick bonus / taiko choice
+    if(a==="left") moveFocus(-1,0); else if(a==="right") moveFocus(1,0);
+    else if(a==="up") moveFocus(0,-1); else if(a==="down") moveFocus(0,1);
+    else if(a==="select"){ const el=f.els[padFocus]; if(el) el.click(); showFocus(); }
+    return;
+  }
+  if(a==="select") doSpin();
+  else if(a==="up") $("betup").click();
+  else if(a==="down") $("betdown").click();
+  else if(a==="left"||a==="right") $("rowsBtn").click();
+  else if(a==="b2") $("modal").classList.add("open");
+  else if(a==="b3") $("autoBtn").click();
+  else if(a==="coin") $("coin").click();
+}
+// put the highlight on the first item whenever a pick/choice screen opens
+["choiceModal","bonusModal"].forEach(id=>{ let was=false;
+  new MutationObserver(()=>{ const open=modalOpen(id); if(open&&!was){ padFocus=0; showFocus(); } was=open; })
+    .observe($(id),{attributes:true,attributeFilter:["class"]}); });
+
 document.addEventListener("keydown",e=>{ if(e.repeat) return;
-  if(e.code==="Space"){ e.preventDefault(); doSpin(); }
-  else if(e.key==="ArrowUp"){ $("betup").click(); }
-  else if(e.key==="ArrowDown"){ $("betdown").click(); }
-  else if(e.key==="c"||e.key==="C"){ $("coin").click(); }
+  const k={Space:"select",Enter:"select",ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",
+           KeyC:"coin",KeyP:"b2",KeyA:"b3"}[e.code];
+  if(k){ e.preventDefault(); doAction(k); }
 });
+
+// gamepad polling: edge-triggered buttons, stick with a dead zone, Coin+Start hold to quit
+const padPrev={};
+let quitHeldSince=0;
+function pollPads(){
+  const pads=navigator.getGamepads?navigator.getGamepads():[];
+  let quitCombo=false, dbg=[];
+  for(const p of pads){ if(!p) continue;
+    const map=padMapFor(p.index), prev=padPrev[p.index]||(padPrev[p.index]={b:[],dir:""});
+    const held=new Set();
+    p.buttons.forEach((b,i)=>{
+      const down=b.pressed||b.value>0.5, act=map[i];
+      if(down&&act) held.add(act);
+      if(down&&!prev.b[i]&&act) doAction(act);
+      prev.b[i]=down;
+    });
+    const ax=p.axes[0]||0, ay=p.axes[1]||0;
+    const dir = ay<-0.5?"up":ay>0.5?"down":ax<-0.5?"left":ax>0.5?"right":"";
+    if(dir&&dir!==prev.dir) doAction(dir);
+    prev.dir=dir;
+    if(held.has("coin")&&held.has("select")) quitCombo=true;
+    if(QS.get("pad")==="debug") dbg.push("pad "+p.index+" "+p.id.slice(0,28)+"\n  buttons: "+
+      p.buttons.map((b,i)=>b.pressed?i:null).filter(v=>v!==null).join(" ")+
+      "\n  axes: "+p.axes.map(v=>v.toFixed(2)).join(" "));
+  }
+  if(quitCombo){ if(!quitHeldSince) quitHeldSince=performance.now();
+    else if(performance.now()-quitHeldSince>1000){ quitHeldSince=0; window.close(); } }
+  else quitHeldSince=0;
+  if(QS.get("pad")==="debug"){ let d=$("padDebug"); if(!d){ d=document.createElement("div"); d.id="padDebug"; document.body.appendChild(d); }
+    d.textContent=dbg.join("\n")||"no gamepad yet — press a button"; }
+  requestAnimationFrame(pollPads);
+}
+requestAnimationFrame(pollPads);
 // browsers need a user gesture to start audio — kick off the music on the first tap
 document.addEventListener("pointerdown", ()=>{
   if(AC && AC.state==="suspended") AC.resume();

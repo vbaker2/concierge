@@ -91,7 +91,7 @@
   /* Cash pot */
   .potbar{ display:flex; align-items:center; justify-content:center; margin:2px 8px 2px; padding:0;
     background:none; border:none; box-shadow:none;}
-  canvas#pot{ height:128px; width:auto; display:block;
+  canvas#pot{ width:256px; max-width:60%; height:auto; display:block;
     filter:drop-shadow(0 4px 7px rgba(0,0,0,.55));}
   .potinfo{ flex:1; text-align:left; min-width:0;}
   .potinfo .t{ font-weight:900; letter-spacing:3px; color:#ffd257; font-size:clamp(13px,3.4vw,16px);
@@ -374,7 +374,10 @@ canvas.width=CW*DPR; canvas.height=CH*DPR; canvas.style.aspectRatio=CW+" / "+CH;
 ctx.scale(DPR,DPR);
 
 // Pot canvas
-const POTW=260, POTH=260;   // square — holds the AI gold-pot image
+// The AI pot images are 320x320 but the art only occupies rows ~26-286, so draw just that
+// band (POT_SY..POT_SY+POT_SH) into a wider-than-tall canvas: big pot, little wasted height.
+const POT_SY=22, POT_SH=268;
+const POTW=340, POTH=290;
 const potCanvas=document.getElementById("pot"), pctx=potCanvas.getContext("2d");
 potCanvas.width=POTW*DPR; potCanvas.height=POTH*DPR; potCanvas.style.aspectRatio=POTW+" / "+POTH;
 pctx.scale(DPR,DPR);
@@ -1288,14 +1291,15 @@ function drawPot(tn){
   // gentle bump per collected coin; a punch while the pot bursts
   let scale = tn<potBump ? 1+0.05*Math.sin((tn-(potBump-240))/240*Math.PI) : 1;
   if(potState==="closing"){ const p=Math.min(1,(tn-potLidStart)/700); scale*=1+0.2*Math.sin(p*Math.PI); }
-  const pad=6, w=POTW-2*pad, h=POTH-2*pad, ox=pad, oy=pad;
+  const pad=10, w=POTW-2*pad, h=POTH-2*pad, ox=pad, oy=pad;   // 320x268 source band → 320x270, true proportions
+  const k=(img.naturalHeight||320)/320, S=[0, POT_SY*k, img.naturalWidth||320, POT_SH*k];
   pctx.save();
   pctx.translate(POTW/2+sx, POTH*0.6+sy); pctx.scale(scale,scale); pctx.translate(-POTW/2,-POTH*0.6);
-  pctx.drawImage(img, ox, oy, w, h);
+  pctx.drawImage(img, ...S, ox, oy, w, h);
   // brighten / glow as it nears full and bursts
   if(potState!=="open" || left<=1){
     pctx.save(); pctx.globalCompositeOperation="lighter"; pctx.globalAlpha=0.22+0.2*Math.sin(tn/110);
-    pctx.drawImage(img, ox, oy, w, h); pctx.restore();
+    pctx.drawImage(img, ...S, ox, oy, w, h); pctx.restore();
   }
   pctx.restore();
 }
